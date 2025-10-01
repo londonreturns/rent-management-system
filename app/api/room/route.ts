@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { readable_id, rent, is_occupied } = body;
+    const { readable_id, rent, is_occupied, water_price } = body;
     if (typeof readable_id !== "number") {
       return NextResponse.json(
         { message: "readable_id is required and must be a number" },
@@ -53,6 +53,7 @@ export async function PUT(request: NextRequest) {
     }
     const update: any = {};
     if (typeof rent === "number") update.rent = rent;
+    if (typeof water_price === "number") update.water_price = water_price;
     if (typeof is_occupied === "boolean") update.is_occupied = is_occupied;
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ message: "Nothing to update" }, { status: 400 });

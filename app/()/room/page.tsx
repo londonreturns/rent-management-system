@@ -28,6 +28,7 @@ interface Room {
   _id: string;
   readable_id: number;
   rent: number;
+  water_price: number;
 }
 
 export default function Room() {
@@ -35,6 +36,7 @@ export default function Room() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [readableId, setReadableId] = useState("");
   const [rent, setRent] = useState("");
+  const [waterPrice, setWaterPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -77,6 +79,7 @@ export default function Room() {
         body: JSON.stringify({
           readable_id: Number(readableId),
           rent: Number(rent),
+          water_price: Number(waterPrice),
         }),
       });
 
@@ -96,6 +99,7 @@ export default function Room() {
       setOpen(false);
       setReadableId("");
       setRent("");
+      setWaterPrice("");
       setEditingId(null);
 
       // 🔁 Refresh room list after successful POST
@@ -131,7 +135,7 @@ export default function Room() {
             <form onSubmit={handleSubmit} className="grid gap-4 py-2">
               <div className="grid gap-2">
                 <label htmlFor="readable_id" className="text-sm font-medium">
-                  Readable ID
+                  Room Id
                 </label>
                 <input
                   id="readable_id"
@@ -156,6 +160,21 @@ export default function Room() {
                   onChange={(e) => setRent(e.target.value)}
                   className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   placeholder="e.g. 1200"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="water_price" className="text-sm font-medium">
+                  Water Price
+                </label>
+                <input
+                  id="water_price"
+                  type="number"
+                  min={0}
+                  value={waterPrice}
+                  onChange={(e) => setWaterPrice(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  placeholder="e.g. 200"
                   required
                 />
               </div>
@@ -201,7 +220,7 @@ export default function Room() {
                 <div>
                   <p className="font-medium">Room #{room.readable_id}</p>
                   <p className="text-sm text-muted-foreground">
-                    Rent: ${room.rent}
+                    Rent: ${room.rent} • Water: ${room.water_price}
                   </p>
                 </div>
                  <div className="flex items-center gap-2">
@@ -211,6 +230,7 @@ export default function Room() {
                      onClick={() => {
                        setReadableId(String(room.readable_id));
                        setRent(String(room.rent));
+                       setWaterPrice(String(room.water_price ?? ""));
                        setEditingId(room.readable_id);
                        setOpen(true);
                      }}

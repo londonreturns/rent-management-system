@@ -64,7 +64,7 @@ export default function Home() {
       >
         <Input
           type="text"
-          placeholder="Enter here"
+          placeholder="PIN number"
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />
