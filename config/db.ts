@@ -1,8 +1,8 @@
-import { Mongoose } from "mongoose";
+import mongoose from "mongoose";
 
-export const connectDB = async (mongoose: Mongoose) => {
+export const connectDB = async (): Promise<void> => {
   const mongooseApiKey = process.env.MONGODB_URI;
-  
+
   if (!mongooseApiKey) {
     throw new Error("MONGODB_URI is not defined in environment variables.");
   }
