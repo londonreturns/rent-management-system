@@ -12,12 +12,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Room() {
   const [open, setOpen] = useState(false);
   const [readableId, setReadableId] = useState("");
   const [rent, setRent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertDescription, setAlertDescription] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,13 +40,26 @@ export default function Room() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ readable_id: Number(readableId), rent: Number(rent) }),
       });
-      if (!res.ok) throw new Error("Failed to create room");
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        const message = errorBody?.message || `Failed to create room (HTTP ${res.status})`;
+        throw new Error(message);
+      }
+      const data = await res.json().catch(() => ({}));
+      setAlertTitle("Room added");
+      setAlertDescription(
+        data?.message ? `${data.message}` : `Room ${readableId} created successfully.`
+      );
+      setAlertOpen(true);
       setOpen(false);
       setReadableId("");
       setRent("");
       // Optionally refresh data list here
     } catch (err) {
-      console.error(err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setAlertTitle("Error adding room");
+      setAlertDescription(message);
+      setAlertOpen(true);
     } finally {
       setSubmitting(false);
     }
@@ -93,6 +118,18 @@ export default function Room() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{alertDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
