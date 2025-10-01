@@ -22,6 +22,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface Person {
   _id: string;
@@ -29,6 +38,11 @@ interface Person {
   number_of_people: number;
   phone: string;
   email: string;
+}
+
+interface RoomLite {
+  _id: string;
+  readable_id: number;
 }
 
 export default function People() {
@@ -47,6 +61,9 @@ export default function People() {
   const [alertDescription, setAlertDescription] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Person | null>(null);
+  const [roomList, setRoomList] = useState<RoomLite[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [roomPopoverOpen, setRoomPopoverOpen] = useState(false);
 
   async function fetchPeople() {
     try {
@@ -64,6 +81,18 @@ export default function People() {
 
   useEffect(() => {
     fetchPeople();
+    // fetch unoccupied rooms
+    (async () => {
+      try {
+        const res = await fetch("/api/room");
+        const json = await res.json();
+        const rooms: any[] = json?.data || [];
+        const unoccupied = rooms.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id }));
+        setRoomList(unoccupied);
+      } catch (e) {
+        // ignore
+      }
+    })();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -80,6 +109,7 @@ export default function People() {
           number_of_people: Number(count),
           phone,
           email,
+          room_id: selectedRoomId || null,
         }),
       });
 
@@ -99,6 +129,12 @@ export default function People() {
       setCount("");
       setPhone("");
       setEmail("");
+      setSelectedRoomId(null);
+      // refresh available rooms list
+      const roomsRes = await fetch("/api/room");
+      const roomsJson = await roomsRes.json();
+      const roomsArr: any[] = roomsJson?.data || [];
+      setRoomList(roomsArr.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id })));
       fetchPeople();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -142,6 +178,13 @@ export default function People() {
                 <label htmlFor="email" className="text-sm font-medium">Email</label>
                 <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]" required />
               </div>
+              <RoomCombo
+                rooms={roomList}
+                selectedRoomId={selectedRoomId}
+                setSelectedRoomId={setSelectedRoomId}
+                open={roomPopoverOpen}
+                setOpen={setRoomPopoverOpen}
+              />
               <DialogFooter>
                 <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : editingId ? "Update" : "Save"}</Button>
               </DialogFooter>
@@ -186,6 +229,10 @@ export default function People() {
                       setCount(String(p.number_of_people));
                       setPhone(p.phone);
                       setEmail(p.email);
+                      // preselect current room if any
+                      // current person does not include room_id in interface, but backend returns it
+                      const anyP: any = p as any;
+                      setSelectedRoomId(anyP.room_id || null);
                       setOpen(true);
                     }}
                   >
@@ -254,4 +301,63 @@ export default function People() {
       </AlertDialog>
     </div>
   );
+}
+
+function RoomCombo({
+  rooms,
+  selectedRoomId,
+  setSelectedRoomId,
+  open,
+  setOpen,
+}: {
+  rooms: RoomLite[]
+  selectedRoomId: string | null
+  setSelectedRoomId: (v: string | null) => void
+  open: boolean
+  setOpen: (v: boolean) => void
+}) {
+  const selected = rooms.find((r) => r._id === selectedRoomId) || null
+  return (
+    <div className="grid gap-2">
+      <label className="text-sm font-medium">Room</label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="justify-between">
+            {selected ? `Room #${selected.readable_id}` : selectedRoomId === null ? "None" : "Select room"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="p-0">
+          <Command>
+            <CommandInput placeholder="Search room..." />
+            <CommandList>
+              <CommandEmpty>No rooms found.</CommandEmpty>
+              <CommandGroup heading="Options">
+                <CommandItem
+                  onSelect={() => {
+                    setSelectedRoomId(null)
+                    setOpen(false)
+                  }}
+                >
+                  None
+                </CommandItem>
+              </CommandGroup>
+              <CommandGroup heading="Unoccupied Rooms">
+                {rooms.map((r) => (
+                  <CommandItem
+                    key={r._id}
+                    onSelect={() => {
+                      setSelectedRoomId(r._id)
+                      setOpen(false)
+                    }}
+                  >
+                    Room #{r.readable_id}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
 }

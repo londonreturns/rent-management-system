@@ -1,5 +1,6 @@
 import { connectDB } from "@/config/db";
 import peopleModel from "@/models/people";
+import roomModel from "@/models/room";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -21,6 +22,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const created = await peopleModel.create(body);
+    if (body?.room_id) {
+      await roomModel.findByIdAndUpdate(body.room_id, { $set: { is_occupied: true } });
+    }
     return NextResponse.json({ message: "Person created successfully", data: created }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
@@ -33,9 +37,23 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { _id, ...update } = body;
+    const { _id, room_id, ...rest } = body;
     if (!_id) return NextResponse.json({ message: "_id is required" }, { status: 400 });
-    const updated = await peopleModel.findByIdAndUpdate(_id, { $set: update }, { new: true });
+    // find existing to check previous room
+    const existing = await peopleModel
+      .findById(_id)
+      .select("room_id")
+      .lean<{ room_id?: string }>();
+    const updated = await peopleModel.findByIdAndUpdate(_id, { $set: { ...rest, room_id: room_id || null } }, { new: true });
+    // if room changed, update occupancy flags
+    const prevRoomId = existing?.room_id?.toString();
+    const nextRoomId = room_id || null;
+    if (prevRoomId && prevRoomId !== nextRoomId) {
+      await roomModel.findByIdAndUpdate(prevRoomId, { $set: { is_occupied: false } });
+    }
+    if (nextRoomId && prevRoomId !== nextRoomId) {
+      await roomModel.findByIdAndUpdate(nextRoomId, { $set: { is_occupied: true } });
+    }
     if (!updated) return NextResponse.json({ message: "Person not found" }, { status: 404 });
     return NextResponse.json({ message: "Person updated successfully", data: updated });
   } catch (error: any) {
@@ -52,6 +70,9 @@ export async function DELETE(request: NextRequest) {
     const { _id } = body;
     if (!_id) return NextResponse.json({ message: "_id is required" }, { status: 400 });
     const deleted = await peopleModel.findByIdAndDelete(_id);
+    if (deleted?.room_id) {
+      await roomModel.findByIdAndUpdate(deleted.room_id, { $set: { is_occupied: false } });
+    }
     if (!deleted) return NextResponse.json({ message: "Person not found" }, { status: 404 });
     return NextResponse.json({ message: "Person deleted successfully", data: deleted });
   } catch (error: any) {
