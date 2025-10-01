@@ -5,6 +5,7 @@ const peopleSchema = new Schema({
   number_of_people: { type: Number, required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true },
+  room_id: { type: Schema.Types.ObjectId, ref: "Room", default: null },
   created_at: { type: Date, default: Date.now },
 });
 
