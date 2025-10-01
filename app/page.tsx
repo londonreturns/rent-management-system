@@ -44,14 +44,14 @@ export default function Home() {
               <CheckCircle className="h-5 w-5 text-green-600" />
               <AlertTitle>Success</AlertTitle>
               <AlertDescription>
-                ✅ API Key matched! Redirecting...
+                ✅ PIN matched! Redirecting...
               </AlertDescription>
             </Alert>
           ) : (
             <Alert variant="destructive">
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <AlertTitle>Error</AlertTitle>
-              <AlertDescription>❌ Invalid API Key</AlertDescription>
+              <AlertDescription>❌ Invalid PIN</AlertDescription>
             </Alert>
           )}
         </div>
