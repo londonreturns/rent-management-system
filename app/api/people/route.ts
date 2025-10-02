@@ -1,9 +1,37 @@
 import { connectDB } from "@/config/db";
 import peopleModel from "@/models/people";
 import roomModel from "@/models/room";
-import { convertBSToGregorian } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+
+// Helper function to convert Nepali digits to English digits
+const nepaliToEnglishDigits = (str: string) => {
+  const nepaliDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+  return str.split('').map((char) => {
+    const index = nepaliDigits.indexOf(char);
+    return index === -1 ? char : index.toString();
+  }).join('');
+};
+
+// Modify the `convertBSToGregorian` function to handle Nepali digits
+export function convertBSToGregorian(bikramSambatDate: string): Date | null {
+  // Convert Nepali digits to English digits first
+  const englishDate = nepaliToEnglishDigits(bikramSambatDate);
+
+  try {
+    const [year, month, day] = englishDate.split('-').map(Number); // Convert to numbers
+    const gregorianDate = new Date(`${year}-${month}-${day}`);
+    
+    if (gregorianDate instanceof Date && !isNaN(gregorianDate.getTime())) {
+      return gregorianDate;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error in convertBSToGregorian:", error);
+    return null;
+  }
+}
 
 // Connect to the database and log the connection attempt
 connectDB();
@@ -15,7 +43,6 @@ export async function GET(request: NextRequest) {
     const people = await peopleModel.find({}).sort({ created_at: -1 }).lean();
     console.log(`Fetched ${people.length} people from the database`);
 
-    // attach room readable_id if assigned
     const roomIds = people.map((p: any) => p.room_id).filter(Boolean);
     console.log(`Found ${roomIds.length} room IDs for the people`);
 
@@ -56,32 +83,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("Request body received:", body);
 
-    // Prepare the processed body with both date formats
     let processedBody = { ...body };
 
-    // Handle Bikram Sambat date
+    // Handle Bikram Sambat date and convert it to Gregorian
     if (body.created_at_bikram_sambat && typeof body.created_at_bikram_sambat === 'string') {
       processedBody.created_at_bikram_sambat = body.created_at_bikram_sambat;
 
-      // Convert BS date to Gregorian date
       const gregorianDate = convertBSToGregorian(body.created_at_bikram_sambat);
       console.log(`Converting Bikram Sambat date ${body.created_at_bikram_sambat} to Gregorian: ${gregorianDate}`);
 
-      if (gregorianDate) {
+      if (gregorianDate instanceof Date && !isNaN(gregorianDate.getTime())) {
         processedBody.created_at_gregorian = gregorianDate;
       } else {
-        // If conversion fails, use current date for Gregorian
         console.warn("Failed to convert Bikram Sambat date to Gregorian. Using current date.");
         processedBody.created_at_gregorian = new Date();
       }
     } else {
-      // If no BS date provided, use current date for Gregorian and null for BS
-      console.log("No Bikram Sambat date provided. Using current date for Gregorian.");
       processedBody.created_at_gregorian = new Date();
       processedBody.created_at_bikram_sambat = null;
     }
 
-    // Create the person
+    // Create the person in the database
     const created = await peopleModel.create(processedBody);
     console.log("Person created successfully:", created);
 
@@ -115,31 +137,26 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: "_id is required" }, { status: 400 });
     }
 
-    // Prepare the processed body with both date formats
     let processedRest = { ...rest };
 
-    // Handle Bikram Sambat date update
+    // Handle Bikram Sambat date update and convert to Gregorian
     if (rest.created_at_bikram_sambat && typeof rest.created_at_bikram_sambat === 'string') {
       processedRest.created_at_bikram_sambat = rest.created_at_bikram_sambat;
 
-      // Convert BS date to Gregorian date
       const gregorianDate = convertBSToGregorian(rest.created_at_bikram_sambat);
       console.log(`Converting Bikram Sambat date ${rest.created_at_bikram_sambat} to Gregorian: ${gregorianDate}`);
 
-      if (gregorianDate) {
+      if (gregorianDate instanceof Date && !isNaN(gregorianDate.getTime())) {
         processedRest.created_at_gregorian = gregorianDate;
       }
-      // If conversion fails, keep the existing Gregorian date
     }
 
-    // Find the existing person to check the previous room
     const existing = await peopleModel.findById(_id).select("room_id").lean<{ room_id?: string }>();
     console.log(`Found existing person with room_id: ${existing?.room_id}`);
 
     const updated = await peopleModel.findByIdAndUpdate(_id, { $set: { ...processedRest, room_id: room_id || null } }, { new: true });
     console.log("Person updated successfully:", updated);
 
-    // If room changed, update occupancy flags
     const prevRoomId = existing?.room_id?.toString();
     const nextRoomId = room_id || null;
 
@@ -183,7 +200,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const deleted = await peopleModel.findByIdAndDelete(_id);
-    console.log("Person deleted:", deleted);
+    console.log(`Deleted person:`, deleted);
 
     if (deleted?.room_id) {
       await roomModel.findByIdAndUpdate(deleted.room_id, { $set: { is_occupied: false } });
