@@ -171,19 +171,22 @@ export default function People() {
   return (
     <div className="p-4">
       <div className="flex justify-end mb-4">
-        <Dialog open={open} onOpenChange={(isOpen) => {
-          setOpen(isOpen);
-          if (!isOpen) {
-            // Reset form state when dialog is closed
-            setEditingId(null);
-            setName("");
-            setCount("");
-            setPhone("");
-            setEmail("");
-            setSelectedRoomId(null);
-            setCreatedAt("");
-          }
-        }}>
+        <Dialog
+          open={open}
+          onOpenChange={(isOpen) => {
+            setOpen(isOpen);
+            if (!isOpen) {
+              // Reset form state when dialog is closed
+              setEditingId(null);
+              setName("");
+              setCount("");
+              setPhone("");
+              setEmail("");
+              setSelectedRoomId(null);
+              setCreatedAt("");
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button variant="secondary" size="sm">
               <IconPlus className="mr-2" />
@@ -225,6 +228,19 @@ export default function People() {
                 />
               </div>
               <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Room Assignment Date (Bikram Sambat)
+                </label>
+                <NepaliDatePicker
+                  value={createdAt}
+                  onChange={(bsDate, adDate) => {
+                    setCreatedAt(bsDate);
+                  }}
+                  placeholder="Select assignment date"
+                  className="w-full"
+                />
+              </div>
+              <div className="grid gap-2">
                 <label htmlFor="phone" className="text-sm font-medium">
                   Phone
                 </label>
@@ -256,19 +272,6 @@ export default function People() {
                 open={roomPopoverOpen}
                 setOpen={setRoomPopoverOpen}
               />
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">
-                  Room Assignment Date (Bikram Sambat)
-                </label>
-                <NepaliDatePicker
-                  value={createdAt}
-                  onChange={(bsDate, adDate) => {
-                    setCreatedAt(bsDate);
-                  }}
-                  placeholder="Select assignment date"
-                  className="w-full"
-                />
-              </div>
               <DialogFooter>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? "Saving..." : editingId ? "Update" : "Save"}
@@ -317,7 +320,12 @@ export default function People() {
                   {p.created_at_gregorian || p.created_at_bikram_sambat ? (
                     <div className="text-xs text-muted-foreground">
                       {p.created_at_gregorian && (
-                        <p>Assigned (AD): {new Date(p.created_at_gregorian).toLocaleDateString()}</p>
+                        <p>
+                          Assigned (AD):{" "}
+                          {new Date(
+                            p.created_at_gregorian
+                          ).toLocaleDateString()}
+                        </p>
                       )}
                       {p.created_at_bikram_sambat && (
                         <p>Assigned (BS): {p.created_at_bikram_sambat}</p>

@@ -132,13 +132,17 @@
 .nepali-datepicker-container .react-datepicker-popper,
 .nepali-datepicker-container .nepali-calendar-popup {
   position: fixed !important;
-  top: 50% !important;
+  top: 10% !important;
+  /* Position 10% from the top */
   left: 50% !important;
-  transform: translate(-50%, -50%) !important;
+  transform: translateX(-50%) !important;
+  /* Horizontally center */
   z-index: 9999 !important;
+  /* Make sure it's on top */
   max-width: 90vw !important;
+  /* Limit max width */
   max-height: 80vh !important;
-  /* Reduce max height to ensure it's fully visible */
+  /* Limit max height to avoid overflow */
   overflow: auto;
 }
 
@@ -162,6 +166,7 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 9998;
+  /* Place backdrop just below the calendar */
   pointer-events: auto;
 }
 
@@ -175,8 +180,11 @@
     max-width: 95vw !important;
     max-height: 70vh !important;
     /* Further adjust the height */
-    top: 50% !important;
+    top: 10% !important;
+    /* Position it further from the top */
     left: 50% !important;
+    transform: translateX(-50%) !important;
+    /* Ensure it's centered */
   }
 }
 
