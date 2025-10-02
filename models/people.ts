@@ -6,9 +6,11 @@ const peopleSchema = new Schema({
   phone: { type: String, required: true },
   email: { type: String, required: false },
   room_id: { type: Schema.Types.ObjectId, ref: "Room", default: null },
-  created_at_gregorian: { type: Date, default: Date.now },
   created_at_bikram_sambat: { type: String, default: null },
-  deadline_date: { type: Date, default: null },
+  createdBSInEnglish: { type: String, default: null },
+  createdADInEnglish: { type: String, default: null },
+  deadlineBSInEnglish: { type: String, default: null },
+  deadlineADInEnglish: { type: String, default: null },
 });
 
 const peopleModel = mongoose.models.People || mongoose.model("People", peopleSchema);

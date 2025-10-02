@@ -47,8 +47,11 @@ interface Person {
   phone: string;
   email: string;
   room_readable_id?: number | null;
-  created_at_gregorian?: string;
   created_at_bikram_sambat?: string;
+  createdBSInEnglish?: string;
+  createdADInEnglish?: string;
+  deadlineBSInEnglish?: string;
+  deadlineADInEnglish?: string;
 }
 
 interface RoomLite {
@@ -91,22 +94,26 @@ export default function People() {
     }
   }
 
+  async function fetchAvailableRooms(currentRoomId?: string | null) {
+    try {
+      const res = await fetch("/api/room");
+      const json = await res.json();
+      const rooms: any[] = json?.data || [];
+      
+      // Include unoccupied rooms and the currently assigned room (if editing)
+      const availableRooms = rooms
+        .filter((r) => r.is_occupied === false || (currentRoomId && r._id === currentRoomId))
+        .map((r) => ({ _id: r._id, readable_id: r.readable_id }));
+      
+      setRoomList(availableRooms);
+    } catch (e) {
+      console.error("Error fetching rooms:", e);
+    }
+  }
+
   useEffect(() => {
     fetchPeople();
-    // fetch unoccupied rooms
-    (async () => {
-      try {
-        const res = await fetch("/api/room");
-        const json = await res.json();
-        const rooms: any[] = json?.data || [];
-        const unoccupied = rooms
-          .filter((r) => r.is_occupied === false)
-          .map((r) => ({ _id: r._id, readable_id: r.readable_id }));
-        setRoomList(unoccupied);
-      } catch (e) {
-        // ignore
-      }
-    })();
+    fetchAvailableRooms();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -149,14 +156,7 @@ export default function People() {
       setSelectedRoomId(null);
       setCreatedAt("");
       // refresh available rooms list
-      const roomsRes = await fetch("/api/room");
-      const roomsJson = await roomsRes.json();
-      const roomsArr: any[] = roomsJson?.data || [];
-      setRoomList(
-        roomsArr
-          .filter((r) => r.is_occupied === false)
-          .map((r) => ({ _id: r._id, readable_id: r.readable_id }))
-      );
+      await fetchAvailableRooms();
       fetchPeople();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -227,19 +227,29 @@ export default function People() {
                   required
                 />
               </div>
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">
-                  Room Assignment Date (Bikram Sambat)
-                </label>
-                <NepaliDatePicker
-                  value={createdAt}
-                  onChange={(bsDate, adDate) => {
-                    setCreatedAt(bsDate);
-                  }}
-                  placeholder="Select assignment date"
-                  className="w-full"
-                />
-              </div>
+              <RoomCombo
+                rooms={roomList}
+                selectedRoomId={selectedRoomId}
+                setSelectedRoomId={setSelectedRoomId}
+                open={roomPopoverOpen}
+                setOpen={setRoomPopoverOpen}
+                setCreatedAt={setCreatedAt}
+              />
+              {selectedRoomId && (
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">
+                    Room Assignment Date (Bikram Sambat)
+                  </label>
+                  <NepaliDatePicker
+                    value={createdAt}
+                    onChange={(bsDate, adDate) => {
+                      setCreatedAt(bsDate);
+                    }}
+                    placeholder="Select assignment date"
+                    className="w-full"
+                  />
+                </div>
+              )}
               <div className="grid gap-2">
                 <label htmlFor="phone" className="text-sm font-medium">
                   Phone
@@ -265,13 +275,6 @@ export default function People() {
                   required
                 />
               </div>
-              <RoomCombo
-                rooms={roomList}
-                selectedRoomId={selectedRoomId}
-                setSelectedRoomId={setSelectedRoomId}
-                open={roomPopoverOpen}
-                setOpen={setRoomPopoverOpen}
-              />
               <DialogFooter>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? "Saving..." : editingId ? "Update" : "Save"}
@@ -317,18 +320,19 @@ export default function People() {
                   <p className="text-sm text-muted-foreground">
                     {p.email} • {p.phone} • {p.number_of_people} person(s)
                   </p>
-                  {p.created_at_gregorian || p.created_at_bikram_sambat ? (
+                  {p.createdADInEnglish || p.created_at_bikram_sambat ? (
                     <div className="text-xs text-muted-foreground">
-                      {p.created_at_gregorian && (
-                        <p>
-                          Assigned (AD):{" "}
-                          {new Date(
-                            p.created_at_gregorian
-                          ).toLocaleDateString()}
-                        </p>
+                      {p.createdADInEnglish && (
+                        <p>Assigned (AD): {p.createdADInEnglish}</p>
                       )}
                       {p.created_at_bikram_sambat && (
                         <p>Assigned (BS): {p.created_at_bikram_sambat}</p>
+                      )}
+                      {p.deadlineADInEnglish && (
+                        <p>Deadline (AD): {p.deadlineADInEnglish}</p>
+                      )}
+                      {p.deadlineBSInEnglish && (
+                        <p>Deadline (BS): {p.deadlineBSInEnglish}</p>
                       )}
                     </div>
                   ) : null}
@@ -337,7 +341,7 @@ export default function People() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       setEditingId(p._id);
                       setName(p.name);
                       setCount(String(p.number_of_people));
@@ -347,7 +351,12 @@ export default function People() {
                       // preselect current room if any
                       // current person does not include room_id in interface, but backend returns it
                       const anyP: any = p as any;
-                      setSelectedRoomId(anyP.room_id || null);
+                      const currentRoomId = anyP.room_id || null;
+                      setSelectedRoomId(currentRoomId);
+                      
+                      // Fetch rooms including the currently assigned room
+                      await fetchAvailableRooms(currentRoomId);
+                      
                       setOpen(true);
                     }}
                   >
@@ -408,14 +417,7 @@ export default function People() {
                   setPendingDelete(null);
                   fetchPeople();
                   // refresh available rooms list
-                  const roomsRes = await fetch("/api/room");
-                  const roomsJson = await roomsRes.json();
-                  const roomsArr: any[] = roomsJson?.data || [];
-                  setRoomList(
-                    roomsArr
-                      .filter((r) => r.is_occupied === false)
-                      .map((r) => ({ _id: r._id, readable_id: r.readable_id }))
-                  );
+                  await fetchAvailableRooms();
                 } catch (err) {
                   const message =
                     err instanceof Error ? err.message : "Unknown error";
@@ -440,12 +442,14 @@ function RoomCombo({
   setSelectedRoomId,
   open,
   setOpen,
+  setCreatedAt,
 }: {
   rooms: RoomLite[];
   selectedRoomId: string | null;
   setSelectedRoomId: (v: string | null) => void;
   open: boolean;
   setOpen: (v: boolean) => void;
+  setCreatedAt: (v: string) => void;
 }) {
   const selected = rooms.find((r) => r._id === selectedRoomId) || null;
   return (
@@ -470,6 +474,7 @@ function RoomCombo({
                 <CommandItem
                   onSelect={() => {
                     setSelectedRoomId(null);
+                    setCreatedAt(""); // Clear the date when no room is selected
                     setOpen(false);
                   }}
                 >
