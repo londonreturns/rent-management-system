@@ -45,7 +45,6 @@ interface Person {
   name: string;
   number_of_people: number;
   phone: string;
-  email: string;
   room_readable_id?: number | null;
   created_at_bikram_sambat?: string;
   createdBSInEnglish?: string;
@@ -65,7 +64,6 @@ export default function People() {
   const [name, setName] = useState("");
   const [count, setCount] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +127,6 @@ export default function People() {
           name,
           number_of_people: Number(count),
           phone,
-          email,
           room_id: selectedRoomId || null,
           created_at_bikram_sambat: createdAt || null,
         }),
@@ -152,7 +149,6 @@ export default function People() {
       setName("");
       setCount("");
       setPhone("");
-      setEmail("");
       setSelectedRoomId(null);
       setCreatedAt("");
       // refresh available rooms list
@@ -181,7 +177,6 @@ export default function People() {
               setName("");
               setCount("");
               setPhone("");
-              setEmail("");
               setSelectedRoomId(null);
               setCreatedAt("");
             }
@@ -262,19 +257,6 @@ export default function People() {
                   required
                 />
               </div>
-              <div className="grid gap-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                  required
-                />
-              </div>
               <DialogFooter>
                 <Button type="submit" disabled={submitting}>
                   {submitting ? "Saving..." : editingId ? "Update" : "Save"}
@@ -318,7 +300,7 @@ export default function People() {
                     <p className="text-sm">Room #{p.room_readable_id}</p>
                   ) : null}
                   <p className="text-sm text-muted-foreground">
-                    {p.email} • {p.phone} • {p.number_of_people} person(s)
+                    {p.phone} • {p.number_of_people} person(s)
                   </p>
                   {p.createdADInEnglish || p.created_at_bikram_sambat ? (
                     <div className="text-xs text-muted-foreground">
@@ -346,7 +328,6 @@ export default function People() {
                       setName(p.name);
                       setCount(String(p.number_of_people));
                       setPhone(p.phone);
-                      setEmail(p.email);
                       setCreatedAt(p.created_at_bikram_sambat || "");
                       // preselect current room if any
                       // current person does not include room_id in interface, but backend returns it

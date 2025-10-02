@@ -63,7 +63,7 @@ export default function Home() {
         className="flex w-full max-w-sm items-center gap-2"
       >
         <Input
-          type="text"
+          type="number"
           placeholder="PIN number"
           value={input}
           onChange={(e) => setInput(e.target.value)}

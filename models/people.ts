@@ -4,7 +4,6 @@ const peopleSchema = new Schema({
   name: { type: String, required: true },
   number_of_people: { type: Number, required: true },
   phone: { type: String, required: true },
-  email: { type: String, required: false },
   room_id: { type: Schema.Types.ObjectId, ref: "Room", default: null },
   created_at_bikram_sambat: { type: String, default: null },
   createdBSInEnglish: { type: String, default: null },
