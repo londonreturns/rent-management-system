@@ -250,14 +250,14 @@ export default function Payment() {
         overdueMonths.push({
           monthKey,
           monthName: `${monthName} ${currentBSYear}`,
-          status: 'missing'
+          status: 'missing' as const
         });
       } else if (monthPayment.status === 'partial') {
         // Partial payment
         overdueMonths.push({
           monthKey,
           monthName: `${monthName} ${currentBSYear}`,
-          status: 'partial',
+          status: 'partial' as const,
           remainingAmount: monthPayment.remaining_balance
         });
       }
