@@ -290,6 +290,11 @@ export default function People() {
                   setConfirmOpen(false);
                   setPendingDelete(null);
                   fetchPeople();
+                  // refresh available rooms list
+                  const roomsRes = await fetch("/api/room");
+                  const roomsJson = await roomsRes.json();
+                  const roomsArr: any[] = roomsJson?.data || [];
+                  setRoomList(roomsArr.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id })));
                 } catch (err) {
                   const message = err instanceof Error ? err.message : "Unknown error";
                   setAlertTitle("Error deleting person");
