@@ -38,6 +38,7 @@ interface Person {
   number_of_people: number;
   phone: string;
   email: string;
+  room_readable_id?: number | null;
 }
 
 interface RoomLite {
@@ -217,6 +218,9 @@ export default function People() {
               <li key={p._id} className="border rounded-md p-3 flex justify-between items-center">
                 <div>
                   <p className="font-medium">{p.name}</p>
+                  {p.room_readable_id ? (
+                    <p className="text-sm">Room #{p.room_readable_id}</p>
+                  ) : null}
                   <p className="text-sm text-muted-foreground">{p.email} • {p.phone} • {p.number_of_people} person(s)</p>
                 </div>
                 <div className="flex items-center gap-2">

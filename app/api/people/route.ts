@@ -9,7 +9,21 @@ connectDB();
 export async function GET(request: NextRequest) {
   try {
     const people = await peopleModel.find({}).sort({ created_at: -1 }).lean();
-    return NextResponse.json({ message: "People fetched successfully", data: people });
+    // attach room readable_id if assigned
+    const roomIds = people.map((p: any) => p.room_id).filter(Boolean);
+    const rooms = await roomModel
+      .find({ _id: { $in: roomIds } })
+      .select("_id readable_id")
+      .lean<{ _id: any; readable_id: number }[]>();
+    const roomMap = new Map<string, number>();
+    for (const r of rooms) {
+      roomMap.set(r._id.toString(), r.readable_id);
+    }
+    const data = people.map((p: any) => ({
+      ...p,
+      room_readable_id: p.room_id ? roomMap.get(p.room_id.toString()) || null : null,
+    }));
+    return NextResponse.json({ message: "People fetched successfully", data });
   } catch (error: any) {
     return NextResponse.json(
       { message: "Error fetching people", error: error.message },

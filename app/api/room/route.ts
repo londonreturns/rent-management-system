@@ -1,5 +1,6 @@
 import { connectDB } from "@/config/db";
 import roomModel from "@/models/room";
+import peopleModel from "@/models/people";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -7,11 +8,22 @@ connectDB();
 
 export async function GET(request: NextRequest) {
   try {
-    const rooms = await roomModel.find(); // Mongoose
-    return NextResponse.json({
-      message: "Rooms fetched successfully",
-      data: rooms,
-    });
+    const rooms = await roomModel.find().lean();
+    // attach assigned person's name if any
+    const roomIds = rooms.map((r: any) => r._id);
+    const people = await peopleModel
+      .find({ room_id: { $in: roomIds } })
+      .select("name room_id")
+      .lean<{ name: string; room_id: any }[]>();
+    const map = new Map<string, string>();
+    for (const p of people) {
+      if (p.room_id) map.set(p.room_id.toString(), p.name);
+    }
+    const data = rooms.map((r: any) => ({
+      ...r,
+      person_name: map.get(r._id.toString()) || null,
+    }));
+    return NextResponse.json({ message: "Rooms fetched successfully", data });
   } catch (error: any) {
     return NextResponse.json(
       { message: "Error fetching rooms", error: error.message },

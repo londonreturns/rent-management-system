@@ -29,6 +29,7 @@ interface Room {
   readable_id: number;
   rent: number;
   water_price: number;
+  person_name?: string | null;
 }
 
 export default function Room() {
@@ -219,6 +220,9 @@ export default function Room() {
               >
                 <div>
                   <p className="font-medium">Room #{room.readable_id}</p>
+                  {room.person_name ? (
+                    <p className="text-sm">{room.person_name}</p>
+                  ) : null}
                   <p className="text-sm text-muted-foreground">
                     Rent: ${room.rent} • Water: ${room.water_price}
                   </p>
