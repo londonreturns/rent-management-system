@@ -32,6 +32,23 @@ export function NavBar() {
               className={navigationMenuTriggerStyle()}
             >
               <Link
+                href="/payment"
+                className={
+                  isActive("/payment")
+                    ? "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white"
+                    : ""
+                }
+              >
+                Payment
+              </Link>
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <NavigationMenuLink
+              asChild
+              className={navigationMenuTriggerStyle()}
+            >
+              <Link
                 href="/home"
                 className={
                   isActive("/home")

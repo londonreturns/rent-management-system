@@ -1,7 +1,7 @@
 import { connectDB } from "@/config/db";
 import peopleModel from "@/models/people";
 import roomModel from "@/models/room";
-import { nepaliToEnglishDate, calculateDeadlineDate } from "@/lib/utils";
+import { nepaliToEnglishDate, calculateDeadlineDay, calculateDeadlineDate } from "@/lib/utils";
 import NepaliDate from "nepali-datetime";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -37,41 +37,39 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Prepare the processed body with date conversions
     let processedBody = { ...body };
-    
+
     if (processedBody.room_id === null || processedBody.room_id === "") {
-      processedBody.created_at_bikram_sambat =  null;
+      processedBody.created_at_bikram_sambat = null;
       processedBody.createdBSInEnglish = null;
       processedBody.createdADInEnglish = null;
       processedBody.deadlineBSInEnglish = null;
       processedBody.deadlineADInEnglish = null;
-    }else{
+    } else {
       const bsInNepali = body.created_at_bikram_sambat;
       const bsInEnglish = nepaliToEnglishDate(bsInNepali);
       const adInEnglish = new NepaliDate(bsInEnglish).formatEnglishDate('YYYY-MM-DD');
-      
-      // Calculate deadline dates (1 day before created date)
-      const deadlineBSInEnglish = calculateDeadlineDate(bsInEnglish);
-      const deadlineADInEnglish = new NepaliDate(deadlineBSInEnglish).formatEnglishDate('YYYY-MM-DD');
-      
+
+      // Calculate recurring deadline day (1 day before created date)
+      const deadlineDay = calculateDeadlineDay(bsInEnglish);
+
       processedBody.created_at_bikram_sambat = bsInNepali;
       processedBody.createdBSInEnglish = bsInEnglish;
       processedBody.createdADInEnglish = adInEnglish;
-      processedBody.deadlineBSInEnglish = deadlineBSInEnglish;
-      processedBody.deadlineADInEnglish = deadlineADInEnglish;
+      processedBody.deadlineDate = deadlineDay; // Store recurring day of month
     }
-    
+
     console.log("---------------------------------");
-    
+
     console.log('Processed body:', processedBody);
     await peopleModel.create(processedBody);
-    
+
     if (body?.room_id) {
       await roomModel.findByIdAndUpdate(body.room_id, { $set: { is_occupied: true } });
     }
-    
+
     return NextResponse.json({ message: "Person created successfully", data: "" }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
@@ -86,34 +84,31 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { _id, room_id, ...rest } = body;
     if (!_id) return NextResponse.json({ message: "_id is required" }, { status: 400 });
-    
+
     // Prepare the processed body with date conversions
     let processedRest = { ...rest };
-    
+
     // Handle Bikram Sambat date conversion (same as POST)
     if (body.created_at_bikram_sambat && typeof body.created_at_bikram_sambat === 'string') {
       const bsInNepali = body.created_at_bikram_sambat;
       const bsInEnglish = nepaliToEnglishDate(bsInNepali);
       const adInEnglish = new NepaliDate(bsInEnglish).formatEnglishDate('YYYY-MM-DD');
-      
-      // Calculate deadline dates (1 day before created date)
-      const deadlineBSInEnglish = calculateDeadlineDate(bsInEnglish);
-      const deadlineADInEnglish = new NepaliDate(deadlineBSInEnglish).formatEnglishDate('YYYY-MM-DD');
-      
+
+      // Calculate recurring deadline day (1 day before created date)
+      const deadlineDay = calculateDeadlineDay(bsInEnglish);
+
       processedRest.created_at_bikram_sambat = bsInNepali;
       processedRest.createdBSInEnglish = bsInEnglish;
       processedRest.createdADInEnglish = adInEnglish;
-      processedRest.deadlineBSInEnglish = deadlineBSInEnglish;
-      processedRest.deadlineADInEnglish = deadlineADInEnglish;
+      processedRest.deadlineDate = deadlineDay; // Store recurring day of month
     } else if (room_id) {
       // If no BS date provided but room is assigned, set all date fields to null
       processedRest.created_at_bikram_sambat = null;
       processedRest.createdBSInEnglish = null;
       processedRest.createdADInEnglish = null;
-      processedRest.deadlineBSInEnglish = null;
-      processedRest.deadlineADInEnglish = null;
+      processedRest.deadlineDate = 1; // Default to 1st of month
     }
-    
+
     // find existing to check previous room
     const existing = await peopleModel
       .findById(_id)

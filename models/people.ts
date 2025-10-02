@@ -8,8 +8,7 @@ const peopleSchema = new Schema({
   created_at_bikram_sambat: { type: String, default: null },
   createdBSInEnglish: { type: String, default: null },
   createdADInEnglish: { type: String, default: null },
-  deadlineBSInEnglish: { type: String, default: null },
-  deadlineADInEnglish: { type: String, default: null },
+  deadlineDate: { type: Number, default: 1 },
 });
 
 const peopleModel = mongoose.models.People || mongoose.model("People", peopleSchema);

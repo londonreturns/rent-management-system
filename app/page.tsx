@@ -23,7 +23,7 @@ export default function Home() {
       setStatus("success");
 
       setTimeout(() => {
-        router.push("/home");
+        router.push("/payment");
       }, 1000);
     } else {
       setStatus("error");

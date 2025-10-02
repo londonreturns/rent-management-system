@@ -23,15 +23,17 @@ const NepaliDatePicker: React.FC<NepaliDatePickerProps> = ({
     bsDate: string;
     adDate: string;
   }) => {
+    console.log("Date selected:", { bsDate, adDate }); // Debug log
     onChange(bsDate, adDate);
   };
+
+  console.log("NepaliDatePicker render with value:", value); // Debug log
 
   return (
     <div className={`nepali-datepicker-container ${className}`}>
       <Calendar 
         onChange={handleDate} 
         theme="deepdark"
-        value={value}
       />
     </div>
   );

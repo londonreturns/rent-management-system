@@ -13,15 +13,26 @@ export async function GET(request: NextRequest) {
     const roomIds = rooms.map((r: any) => r._id);
     const people = await peopleModel
       .find({ room_id: { $in: roomIds } })
-      .select("name room_id")
-      .lean<{ name: string; room_id: any }[]>();
-    const map = new Map<string, string>();
+      .select("_id name room_id deadlineDate createdBSInEnglish created_at_bikram_sambat")
+      .lean<{ _id: any; name: string; room_id: any; deadlineDate?: number; createdBSInEnglish?: string; created_at_bikram_sambat?: string }[]>();
+    const nameMap = new Map<string, string>();
+    const idMap = new Map<string, string>();
+    const deadlineMap = new Map<string, number>();
+    const assignmentDateMap = new Map<string, string>();
     for (const p of people) {
-      if (p.room_id) map.set(p.room_id.toString(), p.name);
+      if (p.room_id) {
+        nameMap.set(p.room_id.toString(), p.name);
+        idMap.set(p.room_id.toString(), p._id.toString());
+        deadlineMap.set(p.room_id.toString(), p.deadlineDate || 1);
+        assignmentDateMap.set(p.room_id.toString(), p.createdBSInEnglish || p.created_at_bikram_sambat || "");
+      }
     }
     const data = rooms.map((r: any) => ({
       ...r,
-      person_name: map.get(r._id.toString()) || null,
+      person_name: nameMap.get(r._id.toString()) || null,
+      person_id: idMap.get(r._id.toString()) || null,
+      deadline_day: deadlineMap.get(r._id.toString()) || null,
+      assignment_date_bs: assignmentDateMap.get(r._id.toString()) || null,
     }));
     return NextResponse.json({ message: "Rooms fetched successfully", data });
   } catch (error: any) {
