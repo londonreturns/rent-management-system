@@ -120,3 +120,74 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure proper centering */
+.nepali-datepicker-container {
+  position: relative;
+}
+
+/* Target the calendar popup/modal */
+.nepali-datepicker-container .calendar-popup,
+.nepali-datepicker-container .datepicker-popup,
+.nepali-datepicker-container .react-datepicker-popper,
+.nepali-datepicker-container .nepali-calendar-popup {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important;
+  max-width: 90vw !important;
+  max-height: 80vh !important;
+  /* Reduce max height to ensure it's fully visible */
+  overflow: auto;
+}
+
+/* Style the calendar container */
+.nepali-datepicker-container .react-datepicker,
+.nepali-datepicker-container .nepali-calendar,
+.nepali-datepicker-container .calendar-container {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 8px !important;
+  border: 1px solid hsl(var(--border)) !important;
+  background: hsl(var(--background)) !important;
+}
+
+/* Add backdrop overlay when calendar is open */
+.nepali-datepicker-container.calendar-open::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  pointer-events: auto;
+}
+
+/* Make sure calendar is not off-screen on smaller screens */
+@media (max-width: 640px) {
+
+  .nepali-datepicker-container .calendar-popup,
+  .nepali-datepicker-container .datepicker-popup,
+  .nepali-datepicker-container .react-datepicker-popper,
+  .nepali-datepicker-container .nepali-calendar-popup {
+    max-width: 95vw !important;
+    max-height: 70vh !important;
+    /* Further adjust the height */
+    top: 50% !important;
+    left: 50% !important;
+  }
+}
+
+/* Adjust calendar positioning if it goes off the screen vertically */
+@media (max-height: 800px) {
+
+  .nepali-datepicker-container .calendar-popup,
+  .nepali-datepicker-container .datepicker-popup,
+  .nepali-datepicker-container .react-datepicker-popper,
+  .nepali-datepicker-container .nepali-calendar-popup {
+    max-height: 60vh !important;
+    /* Reduce height for shorter screens */
+  }
+}

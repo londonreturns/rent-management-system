@@ -120,7 +120,16 @@ export default function Room() {
     <div className="p-4">
       {/* Add Room Button */}
       <div className="flex justify-end mb-4">
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+          setOpen(isOpen);
+          if (!isOpen) {
+            // Reset form state when dialog is closed
+            setEditingId(null);
+            setReadableId("");
+            setRent("");
+            setWaterPrice("");
+          }
+        }}>
           <DialogTrigger asChild>
             <Button variant="secondary" size="sm">
               <IconPlus className="mr-2" />

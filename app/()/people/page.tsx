@@ -3,6 +3,7 @@
 import { IconPlus } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import NepaliDatePicker from "@/components/NepaliDatePicker";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AlertDialogCancel } from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import "../../globals.css";
+
 import {
   Command,
   CommandEmpty,
@@ -39,6 +47,8 @@ interface Person {
   phone: string;
   email: string;
   room_readable_id?: number | null;
+  created_at_gregorian?: string;
+  created_at_bikram_sambat?: string;
 }
 
 interface RoomLite {
@@ -65,6 +75,7 @@ export default function People() {
   const [roomList, setRoomList] = useState<RoomLite[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [roomPopoverOpen, setRoomPopoverOpen] = useState(false);
+  const [createdAt, setCreatedAt] = useState<string>("");
 
   async function fetchPeople() {
     try {
@@ -88,7 +99,9 @@ export default function People() {
         const res = await fetch("/api/room");
         const json = await res.json();
         const rooms: any[] = json?.data || [];
-        const unoccupied = rooms.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id }));
+        const unoccupied = rooms
+          .filter((r) => r.is_occupied === false)
+          .map((r) => ({ _id: r._id, readable_id: r.readable_id }));
         setRoomList(unoccupied);
       } catch (e) {
         // ignore
@@ -111,6 +124,7 @@ export default function People() {
           phone,
           email,
           room_id: selectedRoomId || null,
+          created_at_bikram_sambat: createdAt || null,
         }),
       });
 
@@ -122,7 +136,9 @@ export default function People() {
 
       const data = await res.json().catch(() => ({}));
       setAlertTitle(isEditing ? "Person updated" : "Person added");
-      setAlertDescription(data?.message || `${name} ${isEditing ? "updated" : "added"}.`);
+      setAlertDescription(
+        data?.message || `${name} ${isEditing ? "updated" : "added"}.`
+      );
       setAlertOpen(true);
       setOpen(false);
       setEditingId(null);
@@ -131,11 +147,16 @@ export default function People() {
       setPhone("");
       setEmail("");
       setSelectedRoomId(null);
+      setCreatedAt("");
       // refresh available rooms list
       const roomsRes = await fetch("/api/room");
       const roomsJson = await roomsRes.json();
       const roomsArr: any[] = roomsJson?.data || [];
-      setRoomList(roomsArr.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id })));
+      setRoomList(
+        roomsArr
+          .filter((r) => r.is_occupied === false)
+          .map((r) => ({ _id: r._id, readable_id: r.readable_id }))
+      );
       fetchPeople();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -150,7 +171,19 @@ export default function People() {
   return (
     <div className="p-4">
       <div className="flex justify-end mb-4">
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+          setOpen(isOpen);
+          if (!isOpen) {
+            // Reset form state when dialog is closed
+            setEditingId(null);
+            setName("");
+            setCount("");
+            setPhone("");
+            setEmail("");
+            setSelectedRoomId(null);
+            setCreatedAt("");
+          }
+        }}>
           <DialogTrigger asChild>
             <Button variant="secondary" size="sm">
               <IconPlus className="mr-2" />
@@ -159,25 +192,62 @@ export default function People() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingId ? "Edit Person" : "Add Person"}</DialogTitle>
+              <DialogTitle>
+                {editingId ? "Edit Person" : "Add Person"}
+              </DialogTitle>
               <DialogDescription>Fill the details.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-2">
               <div className="grid gap-2">
-                <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <input id="name" value={name} onChange={(e) => setName(e.target.value)} className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]" required />
+                <label htmlFor="name" className="text-sm font-medium">
+                  Name
+                </label>
+                <input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  required
+                />
               </div>
               <div className="grid gap-2">
-                <label htmlFor="count" className="text-sm font-medium">Number of People</label>
-                <input id="count" type="number" min={1} value={count} onChange={(e) => setCount(e.target.value)} className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]" required />
+                <label htmlFor="count" className="text-sm font-medium">
+                  Number of People
+                </label>
+                <input
+                  id="count"
+                  type="number"
+                  min={1}
+                  value={count}
+                  onChange={(e) => setCount(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  required
+                />
               </div>
               <div className="grid gap-2">
-                <label htmlFor="phone" className="text-sm font-medium">Phone</label>
-                <input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]" required />
+                <label htmlFor="phone" className="text-sm font-medium">
+                  Phone
+                </label>
+                <input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  required
+                />
               </div>
               <div className="grid gap-2">
-                <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]" required />
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  required
+                />
               </div>
               <RoomCombo
                 rooms={roomList}
@@ -186,8 +256,23 @@ export default function People() {
                 open={roomPopoverOpen}
                 setOpen={setRoomPopoverOpen}
               />
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  Room Assignment Date (Bikram Sambat)
+                </label>
+                <NepaliDatePicker
+                  value={createdAt}
+                  onChange={(bsDate, adDate) => {
+                    setCreatedAt(bsDate);
+                  }}
+                  placeholder="Select assignment date"
+                  className="w-full"
+                />
+              </div>
               <DialogFooter>
-                <Button type="submit" disabled={submitting}>{submitting ? "Saving..." : editingId ? "Update" : "Save"}</Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Saving..." : editingId ? "Update" : "Save"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -201,7 +286,9 @@ export default function People() {
             <AlertDialogDescription>{alertDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setAlertOpen(false)}>OK</AlertDialogAction>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>
+              OK
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -215,13 +302,28 @@ export default function People() {
         ) : (
           <ul className="grid gap-2">
             {people.map((p) => (
-              <li key={p._id} className="border rounded-md p-3 flex justify-between items-center">
+              <li
+                key={p._id}
+                className="border rounded-md p-3 flex justify-between items-center"
+              >
                 <div>
                   <p className="font-medium">{p.name}</p>
                   {p.room_readable_id ? (
                     <p className="text-sm">Room #{p.room_readable_id}</p>
                   ) : null}
-                  <p className="text-sm text-muted-foreground">{p.email} • {p.phone} • {p.number_of_people} person(s)</p>
+                  <p className="text-sm text-muted-foreground">
+                    {p.email} • {p.phone} • {p.number_of_people} person(s)
+                  </p>
+                  {p.created_at_gregorian || p.created_at_bikram_sambat ? (
+                    <div className="text-xs text-muted-foreground">
+                      {p.created_at_gregorian && (
+                        <p>Assigned (AD): {new Date(p.created_at_gregorian).toLocaleDateString()}</p>
+                      )}
+                      {p.created_at_bikram_sambat && (
+                        <p>Assigned (BS): {p.created_at_bikram_sambat}</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -233,6 +335,7 @@ export default function People() {
                       setCount(String(p.number_of_people));
                       setPhone(p.phone);
                       setEmail(p.email);
+                      setCreatedAt(p.created_at_bikram_sambat || "");
                       // preselect current room if any
                       // current person does not include room_id in interface, but backend returns it
                       const anyP: any = p as any;
@@ -265,11 +368,15 @@ export default function People() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete person?</AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingDelete ? `This will permanently delete ${pendingDelete.name}.` : "This will permanently delete this record."}
+              {pendingDelete
+                ? `This will permanently delete ${pendingDelete.name}.`
+                : "This will permanently delete this record."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (!pendingDelete) return;
@@ -281,7 +388,9 @@ export default function People() {
                   });
                   if (!res.ok) {
                     const errorBody = await res.json().catch(() => ({}));
-                    const message = errorBody?.message || `Failed to delete (HTTP ${res.status})`;
+                    const message =
+                      errorBody?.message ||
+                      `Failed to delete (HTTP ${res.status})`;
                     throw new Error(message);
                   }
                   setAlertTitle("Person deleted");
@@ -294,9 +403,14 @@ export default function People() {
                   const roomsRes = await fetch("/api/room");
                   const roomsJson = await roomsRes.json();
                   const roomsArr: any[] = roomsJson?.data || [];
-                  setRoomList(roomsArr.filter((r) => r.is_occupied === false).map((r) => ({ _id: r._id, readable_id: r.readable_id })));
+                  setRoomList(
+                    roomsArr
+                      .filter((r) => r.is_occupied === false)
+                      .map((r) => ({ _id: r._id, readable_id: r.readable_id }))
+                  );
                 } catch (err) {
-                  const message = err instanceof Error ? err.message : "Unknown error";
+                  const message =
+                    err instanceof Error ? err.message : "Unknown error";
                   setAlertTitle("Error deleting person");
                   setAlertDescription(message);
                   setAlertOpen(true);
@@ -319,20 +433,24 @@ function RoomCombo({
   open,
   setOpen,
 }: {
-  rooms: RoomLite[]
-  selectedRoomId: string | null
-  setSelectedRoomId: (v: string | null) => void
-  open: boolean
-  setOpen: (v: boolean) => void
+  rooms: RoomLite[];
+  selectedRoomId: string | null;
+  setSelectedRoomId: (v: string | null) => void;
+  open: boolean;
+  setOpen: (v: boolean) => void;
 }) {
-  const selected = rooms.find((r) => r._id === selectedRoomId) || null
+  const selected = rooms.find((r) => r._id === selectedRoomId) || null;
   return (
     <div className="grid gap-2">
       <label className="text-sm font-medium">Room</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button type="button" variant="outline" className="justify-between">
-            {selected ? `Room #${selected.readable_id}` : selectedRoomId === null ? "None" : "Select room"}
+            {selected
+              ? `Room #${selected.readable_id}`
+              : selectedRoomId === null
+              ? "None"
+              : "Select room"}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="p-0">
@@ -343,8 +461,8 @@ function RoomCombo({
               <CommandGroup heading="Options">
                 <CommandItem
                   onSelect={() => {
-                    setSelectedRoomId(null)
-                    setOpen(false)
+                    setSelectedRoomId(null);
+                    setOpen(false);
                   }}
                 >
                   None
@@ -355,8 +473,8 @@ function RoomCombo({
                   <CommandItem
                     key={r._id}
                     onSelect={() => {
-                      setSelectedRoomId(r._id)
-                      setOpen(false)
+                      setSelectedRoomId(r._id);
+                      setOpen(false);
                     }}
                   >
                     Room #{r.readable_id}
@@ -368,5 +486,5 @@ function RoomCombo({
         </PopoverContent>
       </Popover>
     </div>
-  )
+  );
 }
