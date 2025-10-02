@@ -55,6 +55,7 @@ export default function Room() {
       const res = await fetch("/api/room");
       if (!res.ok) throw new Error("Failed to fetch rooms");
       const json = await res.json();
+      console.log("Fetched rooms:", json.data); // Debug log
       setRooms(json.data || []);
     } catch (err) {
       console.error("Error fetching rooms:", err);
@@ -224,7 +225,7 @@ export default function Room() {
                     <p className="text-sm">{room.person_name}</p>
                   ) : null}
                   <p className="text-sm text-muted-foreground">
-                    Rent: ${room.rent} • Water: ${room.water_price}
+                    Rent: ${room.rent} • Water: ${room.water_price || 0}
                   </p>
                 </div>
                  <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ const roomSchema = new Schema({
   rent: { type: Number, required: true },
   is_occupied: { type: Boolean, default: false },
   created_at: { type: Date, default: Date.now }, 
-  water_price: { type: Number, required: true },
+  water_price: { type: Number, required: true, default: 0 },
 });
 
 const roomModel = mongoose.models.Room || mongoose.model("Room", roomSchema);

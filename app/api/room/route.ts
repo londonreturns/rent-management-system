@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.json();
+    console.log("POST formData received:", formData); // Debug log
     const newRoom = await roomModel.create(formData);
+    console.log("Created room:", newRoom); // Debug log
 
     return NextResponse.json({
       message: "Room created successfully",
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log("PUT body received:", body); // Debug log
     const { readable_id, rent, is_occupied, water_price } = body;
     if (typeof readable_id !== "number") {
       return NextResponse.json(
@@ -67,6 +70,7 @@ export async function PUT(request: NextRequest) {
     if (typeof rent === "number") update.rent = rent;
     if (typeof water_price === "number") update.water_price = water_price;
     if (typeof is_occupied === "boolean") update.is_occupied = is_occupied;
+    console.log("Update object:", update); // Debug log
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
     }
@@ -75,6 +79,7 @@ export async function PUT(request: NextRequest) {
       { $set: update },
       { new: true }
     );
+    console.log("Updated room:", updated); // Debug log
     if (!updated) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
     }
