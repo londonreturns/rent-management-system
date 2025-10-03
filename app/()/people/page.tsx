@@ -126,7 +126,7 @@ export default function People() {
           _id: editingId || undefined,
           name,
           number_of_people: Number(count),
-          phone,
+          phone: `+977${phone}`,
           room_id: selectedRoomId || null,
           created_at_bikram_sambat: createdAt || null,
         }),
@@ -249,13 +249,23 @@ export default function People() {
                 <label htmlFor="phone" className="text-sm font-medium">
                   Phone
                 </label>
-                <input
-                  id="phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="border rounded-md px-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                  required
-                />
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                    +977
+                  </div>
+                  <input
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => {
+                      // Remove spaces, hyphens, and any non-digit characters except + at the beginning
+                      const cleaned = e.target.value.replace(/[\s\-]/g, '').replace(/[^\d]/g, '');
+                      setPhone(cleaned);
+                    }}
+                    className="border rounded-md pl-12 pr-3 py-2 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] w-full"
+                    placeholder="98XXXXXXXX"
+                    required
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={submitting}>
@@ -327,7 +337,8 @@ export default function People() {
                       setEditingId(p._id);
                       setName(p.name);
                       setCount(String(p.number_of_people));
-                      setPhone(p.phone);
+                      // Remove +977 prefix for editing
+                      setPhone(p.phone.startsWith('+977') ? p.phone.slice(4) : p.phone);
                       setCreatedAt(p.created_at_bikram_sambat || "");
                       // preselect current room if any
                       // current person does not include room_id in interface, but backend returns it
