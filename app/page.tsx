@@ -6,28 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<"success" | "error" | null>(null);
   const router = useRouter();
+  const { login } = useAuth();
 
-  const handleCheck = (
+  const handleCheck = async (
     e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
   ) => {
     if (e) e.preventDefault(); // Prevent form from reloading the page
 
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY;
-
-    if (input === apiKey) {
+    setStatus(null);
+    
+    const success = await login(input);
+    
+    if (success) {
       setStatus("success");
-
       setTimeout(() => {
         router.push("/payment");
       }, 1000);
     } else {
       setStatus("error");
-
       setTimeout(() => {
         setStatus(null);
       }, 3000);

@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { X, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 import {
   NavigationMenu,
@@ -15,6 +16,7 @@ import {
 
 export function NavBar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const isActive = (path: string) => {
     // Default to home if on root path
@@ -99,9 +101,13 @@ export function NavBar() {
               asChild
               className={navigationMenuTriggerStyle()}
             >
-              <Link href="/" className="flex items-center justify-center">
-                <X className="h-4 w-4 font-bold" />
-              </Link>
+              <button 
+                onClick={logout}
+                className="flex items-center justify-center hover:bg-gray-200 px-3 py-2 rounded-md"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </NavigationMenuLink>
           </NavigationMenuItem>
         </NavigationMenuList>
