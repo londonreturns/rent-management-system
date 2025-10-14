@@ -1,8 +1,10 @@
 "use client";
 
 import { IconCash, IconCalculator, IconCreditCard } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { adToBsDate } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +64,7 @@ interface PaymentRecord {
   amount_paid: number;
   remaining_balance: number;
   payment_date_ad: string;
+  payment_date_bs?: string | null;
   payment_method: string;
   status: string;
 }
@@ -84,6 +87,7 @@ export default function Payment() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertDescription, setAlertDescription] = useState("");
+  const [prefillLoading, setPrefillLoading] = useState(false);
 
   async function fetchOccupiedRooms() {
     try {
@@ -107,13 +111,34 @@ export default function Payment() {
 
   async function fetchRecentPayments() {
     try {
-      const res = await fetch("/api/payment?limit=20&sort=-payment_date_ad");
+      const res = await fetch("/api/payment?limit=200");
       if (!res.ok) throw new Error("Failed to fetch payments");
       const json = await res.json();
       setRecentPayments(json.data || []);
     } catch (err) {
       console.error("Error fetching payments:", err);
     }
+  }
+
+  const roomIdToCurrentName = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const r of rooms) m.set(r.readable_id, r.person_name);
+    return m;
+  }, [rooms]);
+
+  function groupPaymentsByUser(all: PaymentRecord[]): { personName: string; roomId: number; payments: PaymentRecord[] }[] {
+    // Group strictly by room
+    const map = new Map<number, { personName: string; roomId: number; payments: PaymentRecord[] }>();
+    const sorted = [...all].sort((a, b) => new Date(b.payment_date_ad).getTime() - new Date(a.payment_date_ad).getTime());
+    for (const p of sorted) {
+      const rid = p.room_readable_id;
+      if (!map.has(rid)) map.set(rid, { personName: roomIdToCurrentName.get(rid) || p.person_name, roomId: rid, payments: [] });
+      const bucket = map.get(rid)!;
+      if (bucket.payments.length < 2) bucket.payments.push(p); // only latest 2 per room
+    }
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => a.roomId - b.roomId);
+    return arr;
   }
 
   async function fetchPreviousBalance(roomId: string, personId: string) {
@@ -322,11 +347,14 @@ export default function Payment() {
     setSubmitting(true);
 
     try {
-      // Calculate amounts
-      const electricityCost = Number(electricityUnits) * 13;
-      const waterCost = selectedRoom?.water_price || 0;
-      const rentCost = selectedRoom?.rent || 0;
-      const totalAmount = electricityCost + waterCost + rentCost;
+      // Calculate amounts (ensure numeric and rounded to 2dp)
+      const units = Number(electricityUnits || 0);
+      const electricityCostRaw = units * 13;
+      const electricityCost = Math.round(electricityCostRaw * 100) / 100;
+      const waterCost = Math.round(Number(selectedRoom?.water_price || 0) * 100) / 100;
+      const rentCost = Math.round(Number(selectedRoom?.rent || 0) * 100) / 100;
+      const rentCostSend = isCompletingPartialPayment ? 0 : rentCost;
+      const totalAmount = Math.round((electricityCost + waterCost + rentCost) * 100) / 100;
 
       // Get selected month name (BS format)
       const selectedMonthData = monthOptions.find(
@@ -345,11 +373,11 @@ export default function Payment() {
           payment_month: selectedMonth, // BS format: YYYY-MM
           payment_month_name: selectedMonthName, // e.g., "Kartik 2081"
           payment_month_name_nepali: selectedMonthNameNepali, // e.g., "कार्तिक"
-          electricity_units: Number(electricityUnits),
+          electricity_units: units,
           electricity_cost: electricityCost,
           water_cost: waterCost,
-          rent_cost: rentCost,
-          total_amount: monthlyTotal,
+          rent_cost: rentCostSend,
+          total_amount: Math.round((electricityCost + waterCost + rentCostSend) * 100) / 100,
           amount_paid: paidAmount,
           remaining_balance: remainingBalance,
           previous_balance: previousBalance,
@@ -395,17 +423,41 @@ export default function Payment() {
     setElectricityUnits("");
     setAmountPaid("");
     setPaymentMethod("cash");
-
-    // Set current BS month as default (Ashwin 2082)
-    const currentMonth = `2082-06`; // Ashwin 2082
-    setSelectedMonth(currentMonth);
-
-    // Fetch previous balance and payment info
-    const { balance, lastPayment: lastPaymentData } = await fetchPreviousBalance(room._id, room.person_id);
-    setPreviousBalance(balance);
-    setLastPayment(lastPaymentData);
-
+    setSelectedMonth("");
+    setPrefillLoading(true);
     setPaymentOpen(true);
+
+    try {
+      const [paymentsRes, prev] = await Promise.all([
+        fetch(`/api/payment?limit=24`),
+        fetchPreviousBalance(room._id, room.person_id)
+      ]);
+
+      const { balance, lastPayment: lastPaymentData } = prev as any;
+      setPreviousBalance(balance);
+      setLastPayment(lastPaymentData);
+
+      let nextBs = "";
+      try {
+        const json = await paymentsRes.json();
+        const all: PaymentRecord[] = json.data || [];
+        const roomPayments = all.filter(p => p.room_readable_id === room.readable_id);
+        const completed = roomPayments
+          .filter(p => p.status === "completed")
+          .sort((a, b) => (a.payment_month > b.payment_month ? -1 : a.payment_month < b.payment_month ? 1 : 0));
+        if (completed.length > 0 && completed[0].payment_month) {
+          const [yStr, mStr] = completed[0].payment_month.split("-");
+          let y = Number(yStr);
+          let m = Number(mStr) + 1;
+          if (m > 12) { m = 1; y += 1; }
+          nextBs = `${y}-${String(m).padStart(2, "0")}`;
+        }
+      } catch {}
+      if (!nextBs) nextBs = monthOptions.find(Boolean)?.value || "";
+      setSelectedMonth(nextBs || "");
+    } finally {
+      setPrefillLoading(false);
+    }
   };
 
   // Check if we're completing a partial payment
@@ -522,76 +574,45 @@ export default function Payment() {
         </div>
       )}
 
-      {/* Recent Payments Section */}
+      {/* Grouped Recent Payments by User (sorted by room id) */}
       {recentPayments.length > 0 && (
         <div className="mt-8">
-          <h2 className="text-lg font-semibold mb-4">Recent Payments</h2>
-          <div className="grid gap-3">
-            {recentPayments.map((payment) => (
-              <div
-                key={payment._id}
-                className="border rounded-lg p-3 bg-muted/30"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">
-                      Room #{payment.room_readable_id} - {payment.person_name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-primary">
-                        Payment for: {payment.payment_month_name}
-                      </span>{" "}
-                      (Bikram Sambat)
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Paid on:{" "}
-                      {new Date(payment.payment_date_ad).toLocaleDateString()}
-                    </p>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Electricity: {payment.electricity_units} kWh (रु{" "}
-                      {payment.electricity_cost}) • Water: रु{" "}
-                      {payment.water_cost} • Rent: रु {payment.rent_cost} •
-                      {payment.payment_method.charAt(0).toUpperCase() +
-                        payment.payment_method.slice(1)}
+          <h2 className="text-lg font-semibold mb-4">Recent Payments (grouped by user)</h2>
+          <div className="grid gap-4">
+            {groupPaymentsByUser(recentPayments).map(({ personName, roomId, payments }) => (
+              <div key={`${roomId}-${personName}`} className="border rounded-lg p-4 bg-muted/30">
+                <h3 className="font-semibold text-base mb-2">
+                  <Link className="cursor-pointer underline" href={`/payments/${roomId}`}>{personName}</Link> — Room #{roomId}
+                </h3>
+                <div className="grid gap-2">
+                  {payments.map((payment) => (
+                    <div key={payment._id} className="border rounded-md p-3 bg-white">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Paid on: {new Date(payment.payment_date_ad).toLocaleDateString()}
+                            {(() => {
+                              const bsDate = payment.payment_date_bs || adToBsDate(payment.payment_date_ad);
+                              return bsDate ? ` (BS: ${bsDate})` : '';
+                            })()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            For: {payment.payment_month_name}
+                          </p>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Electricity: {payment.electricity_units} kWh (रु {payment.electricity_cost}) • Water: रु {payment.water_cost} • Rent: रु {payment.rent_cost}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">रु {payment.total_amount}</p>
+                          <p className={`text-xs capitalize ${
+                            payment.status === "completed" ? "text-green-600" :
+                            payment.status === "partial" ? "text-yellow-600" :
+                            payment.status === "overpaid" ? "text-blue-600" : "text-gray-600"}`}>{payment.status}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs mt-1">
-                      <span className="text-muted-foreground">
-                        Paid: रु {payment.amount_paid}
-                      </span>
-                      {payment.remaining_balance !== 0 && (
-                        <span
-                          className={`ml-2 ${
-                            payment.remaining_balance > 0
-                              ? "text-red-600"
-                              : "text-green-600"
-                          }`}
-                        >
-                          {payment.remaining_balance > 0
-                            ? "Due: "
-                            : "Overpaid: "}
-                          रु {Math.abs(payment.remaining_balance)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-primary">
-                      रु {payment.total_amount}
-                    </p>
-                    <p
-                      className={`text-xs capitalize ${
-                        payment.status === "completed"
-                          ? "text-green-600"
-                          : payment.status === "partial"
-                          ? "text-yellow-600"
-                          : payment.status === "overpaid"
-                          ? "text-blue-600"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {payment.status}
-                    </p>
-                  </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -625,8 +646,9 @@ export default function Payment() {
                     type="button"
                     variant="outline"
                     className="justify-between"
+                    disabled={prefillLoading}
                   >
-                    {selectedMonth
+                    {prefillLoading ? "Prefilling…" : selectedMonth
                       ? monthOptions.find((m) => m.value === selectedMonth)
                           ?.label
                       : "Select month"}
@@ -832,6 +854,69 @@ export default function Payment() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function AllPaymentsForRoom({ roomId, onClose }: { roomId: number; onClose: () => void }) {
+  const [items, setItems] = useState<PaymentRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/payment?limit=1000`);
+        const json = await res.json();
+        if (!cancelled) {
+          const all: PaymentRecord[] = json.data || [];
+          const filtered = all.filter((p) => p.room_readable_id === roomId).sort((a, b) => new Date(b.payment_date_ad).getTime() - new Date(a.payment_date_ad).getTime());
+          setItems(filtered);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [roomId]);
+
+  return (
+    <div className="border rounded-md p-3 bg-white">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-medium">All payments for Room #{roomId}</div>
+        <button className="text-sm underline" onClick={onClose}>Close</button>
+      </div>
+      {loading ? (
+        <div className="text-sm text-gray-500">Loading…</div>
+      ) : (
+        <div className="grid gap-2">
+          {items.map((p) => (
+            <div key={p._id} className="border rounded p-2 bg-muted/30">
+              <div className="flex justify-between">
+                  <div className="text-sm">
+                    <div className="font-medium">{p.person_name}</div>
+                    <div className="text-xs text-gray-600">
+                      Paid on: {new Date(p.payment_date_ad).toLocaleDateString()}
+                      {(() => {
+                        const bsDate = p.payment_date_bs || adToBsDate(p.payment_date_ad);
+                        return bsDate ? ` (BS: ${bsDate})` : '';
+                      })()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      For: {p.payment_month_name}
+                    </div>
+                  </div>
+                <div className="text-right">
+                  <div className="font-semibold">रु {p.total_amount}</div>
+                  <div className={`text-xs capitalize ${p.status === "completed" ? "text-green-600" : p.status === "partial" ? "text-yellow-600" : p.status === "overpaid" ? "text-blue-600" : "text-gray-600"}`}>{p.status}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

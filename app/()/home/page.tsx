@@ -19,6 +19,12 @@ type DateMode = "BS" | "AD";
 
 type Point = { x: string; y: number };
 
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const NP_MONTHS = [
+  "बैशाख","जेष्ठ","आषाढ","श्रावण","भाद्र","आश्विन",
+  "कार्तिक","मंसिर","पौष","माघ","फाल्गुन","चैत्र"
+];
+
 export default function Home() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,6 +33,7 @@ export default function Home() {
   const now = useMemo(() => new Date(), []);
   const [adYear, setAdYear] = useState<number>(now.getFullYear());
   const [bsYear, setBsYear] = useState<number | null>(null);
+  const [currentMonth, setCurrentMonth] = useState<{ year: number; month: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +52,11 @@ export default function Home() {
             payment_date_ad: p.payment_date_ad ? new Date(p.payment_date_ad).toISOString() : undefined,
             payment_date_bs: p.payment_date_bs || null,
           }));
+          console.log(`Loaded ${rows.length} payments:`, rows.map(p => ({
+            month: p.payment_month,
+            bs_date: p.payment_date_bs,
+            rent: p.rent_cost
+          })));
           setPayments(rows);
         }
       } catch (e) {
@@ -64,7 +76,23 @@ export default function Home() {
       const y = getCurrentBSYearFromData();
       if (y) setBsYear(y);
     }
-  }, [dateMode, payments]);
+    // Set current month for navigation
+    if (dateMode === "BS") {
+      const y = bsYear ?? getCurrentBSYearFromData();
+      if (y) {
+        const months = payments
+          .filter((p) => p.payment_month?.startsWith(String(y)))
+          .map((p) => Number(String(p.payment_month).split("-")[1]))
+          .filter((n) => Number.isFinite(n));
+        if (months.length) {
+          const m = Math.max(...months);
+          setCurrentMonth({ year: y, month: m });
+        }
+      }
+    } else {
+      setCurrentMonth({ year: adYear, month: now.getMonth() + 1 });
+    }
+  }, [dateMode, payments, bsYear, adYear, now]);
 
   // Helpers
   function formatYYYYMM(d: Date): string {
@@ -210,13 +238,16 @@ export default function Home() {
             .filter((n) => Number.isFinite(n));
           if (months.length) currentBSMonth = Math.max(...months);
         }
-        let hasDaily = false;
         if (currentBSYear && currentBSMonth) {
-          // seed days 1..31
-          for (let day = 1; day <= 31; day++) {
-            const key = `${currentBSYear}-${String(currentBSMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const bsMonthPrefix = `${currentBSYear}-${String(currentBSMonth).padStart(2, "0")}`;
+          
+          // Always create daily points for the entire month (1 to 30)
+          for (let day = 1; day <= 30; day++) {
+            const key = `${bsMonthPrefix}-${String(day).padStart(2, "0")}`;
             points[key] = 0;
           }
+          
+          // Process payments for this month
           for (const p of payments) {
             if (!p.payment_month) continue;
             const [yStr, mStr] = p.payment_month.split("-");
@@ -224,24 +255,22 @@ export default function Home() {
             const m = Number(mStr);
             if (y === currentBSYear && m === currentBSMonth) {
               if (p.payment_date_bs && /\d{4}-\d{2}-\d{2}/.test(p.payment_date_bs)) {
-                hasDaily = true;
-                points[p.payment_date_bs] = (points[p.payment_date_bs] || 0) + p.rent_cost;
+                // Use the specific payment date
+                const paymentDay = Number(p.payment_date_bs.split("-")[2]);
+                if (paymentDay >= 1 && paymentDay <= 30) {
+                  points[p.payment_date_bs] = (points[p.payment_date_bs] || 0) + p.rent_cost;
+                  console.log(`Payment on BS date ${p.payment_date_bs}: ${p.rent_cost} rent`);
+                }
               } else {
+                // If no specific day, put it on day 1
                 const key = `${yStr}-${mStr}-01`;
                 points[key] = (points[key] || 0) + p.rent_cost;
+                console.log(`Payment without BS date, using day 1: ${p.rent_cost} rent`);
               }
             }
           }
-        }
-        if (!hasDaily) {
-          // collapse to single monthly point if no daily data
-          const y = currentBSYear ?? 0;
-          const m = currentBSMonth ?? 1;
-          const key = `${y}-${String(m).padStart(2, "0")}`;
-          points[key] = 0;
-          for (const p of payments) {
-            if (p.payment_month === `${y}-${String(m).padStart(2, "0")}`) points[key] += p.rent_cost;
-          }
+          
+          console.log(`Processing month ${bsMonthPrefix}, found ${Object.keys(points).length} days`);
         }
       } else if (timeframe === "6months") {
         const currentBSYear = getCurrentBSYearFromData();
@@ -375,7 +404,15 @@ export default function Home() {
       {/* Main line chart */}
       <ChartCard
         title="Rent trend"
-        subtitle={`${dateMode} • ${labelForTimeframe(timeframe)}${timeframe === "year" ? ` • ${dateMode === "AD" ? adYear : (bsYear ?? getCurrentBSYearFromData() ?? "")}` : ""}`}
+        subtitle={timeframe === "month" && currentMonth
+          ? `${currentMonth.year} ${dateMode} • ${dateMode === "AD" ? EN_MONTHS[currentMonth.month - 1] : NP_MONTHS[currentMonth.month - 1]}`
+          : `${dateMode} • ${labelForTimeframe(timeframe)}${
+              timeframe === "year"
+                ? ` • ${dateMode === "AD" ? adYear : (bsYear ?? getCurrentBSYearFromData() ?? "")}`
+                : timeframe === "6months"
+                  ? ` • ${dateMode === "AD" ? adYear : (bsYear ?? getCurrentBSYearFromData() ?? "")}`
+                  : ""
+            }`}
         loading={loading}
         actions={
           <div className="flex gap-2">
@@ -394,10 +431,54 @@ export default function Home() {
                 {lbl}
               </Button>
             ))}
+            {timeframe === "month" && currentMonth && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (dateMode === "AD") {
+                      const newMonth = currentMonth.month === 1 ? 12 : currentMonth.month - 1;
+                      const newYear = currentMonth.month === 1 ? currentMonth.year - 1 : currentMonth.year;
+                      setCurrentMonth({ year: newYear, month: newMonth });
+                    } else {
+                      const newMonth = currentMonth.month === 1 ? 12 : currentMonth.month - 1;
+                      const newYear = currentMonth.month === 1 ? currentMonth.year - 1 : currentMonth.year;
+                      setCurrentMonth({ year: newYear, month: newMonth });
+                    }
+                  }}
+                  className="transition-colors duration-200 hover:bg-black hover:text-white"
+                >
+                  ← Prev Month
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (dateMode === "AD") {
+                      const newMonth = currentMonth.month === 12 ? 1 : currentMonth.month + 1;
+                      const newYear = currentMonth.month === 12 ? currentMonth.year + 1 : currentMonth.year;
+                      setCurrentMonth({ year: newYear, month: newMonth });
+                    } else {
+                      const newMonth = currentMonth.month === 12 ? 1 : currentMonth.month + 1;
+                      const newYear = currentMonth.month === 12 ? currentMonth.year + 1 : currentMonth.year;
+                      setCurrentMonth({ year: newYear, month: newMonth });
+                    }
+                  }}
+                  className="transition-colors duration-200 hover:bg-black hover:text-white"
+                >
+                  Next Month →
+                </Button>
+              </>
+            )}
           </div>
         }
       >
-        <LineChart width={900} height={240} series={mainSeries} />
+        <LineChart
+          width={900}
+          height={240}
+          series={mainSeries}
+          formatX={(x) => formatXAxisLabel(x, dateMode, timeframe, currentMonth)}
+          timeframe={timeframe}
+        />
       </ChartCard>
 
       {/* Cumulative chart */}
@@ -440,7 +521,13 @@ export default function Home() {
           </div>
         }
       >
-        <LineChart width={900} height={240} series={cumulativeSeries} />
+        <LineChart
+          width={900}
+          height={240}
+          series={cumulativeSeries}
+          formatX={(x) => formatXAxisLabel(x, dateMode, "year", null)}
+          timeframe="year"
+        />
       </ChartCard>
     </div>
   );
@@ -476,7 +563,7 @@ function ChartCard({ title, subtitle, loading, actions, children }: { title: str
   );
 }
 
-function LineChart({ width, height, series }: { width: number; height: number; series: Point[] }) {
+function LineChart({ width, height, series, formatX, timeframe }: { width: number; height: number; series: Point[]; formatX?: (x: string) => string; timeframe?: Timeframe }) {
   const padding = { top: 10, right: 16, bottom: 24, left: 40 };
   const innerW = Math.max(0, width - padding.left - padding.right);
   const innerH = Math.max(0, height - padding.top - padding.bottom);
@@ -516,6 +603,17 @@ function LineChart({ width, height, series }: { width: number; height: number; s
 
   const animKey = series.map((p) => `${p.x}:${p.y}`).join("|");
 
+  // Compute optional month label if all x share same YYYY-MM
+  const monthPrefix = useMemo(() => {
+    if (xs.length === 0) return "";
+    const first = xs[0];
+    const m = first.match(/^(\d{4}-\d{2})-\d{2}$/);
+    if (!m) return "";
+    const prefix = m[1];
+    const allSame = xs.every((x) => x.startsWith(prefix + "-"));
+    return allSame ? prefix : "";
+  }, [xs]);
+
   return (
     <svg key={animKey} width={width} height={height} className="min-w-full">
       <style>{`
@@ -548,11 +646,28 @@ function LineChart({ width, height, series }: { width: number; height: number; s
 
       {/* X labels (sparse) */}
       {xs.map((x, i) => {
-        const show = i === 0 || i === xs.length - 1 || i % Math.ceil(xs.length / 6) === 0;
+        // For monthly view, show key days (1, 6, 12, 18, 24, 30)
+        let show = false;
+        if (timeframe === "month") {
+          const dayMatch = x.match(/-(\d{2})$/);
+          if (dayMatch) {
+            const day = Number(dayMatch[1]);
+            show = day === 1 || day === 6 || day === 12 || day === 18 || day === 24 || day === 30;
+          } else {
+            show = i === 0 || i === xs.length - 1;
+          }
+        } else if (timeframe === "year") {
+          // For year view (cumulative chart), show all months
+          show = true;
+        } else {
+          show = i === 0 || i === xs.length - 1 || i % Math.ceil(xs.length / 6) === 0;
+        }
         if (!show) return null;
+        const base = monthPrefix ? x.split("-")[2] : x;
+        const label = formatX ? formatX(base) : base;
         return (
           <text key={i} x={xPos(i)} y={height - padding.bottom + 14} textAnchor="middle" className="fill-gray-500 text-[10px]">
-            {x}
+            {label}
           </text>
         );
       })}
@@ -567,4 +682,40 @@ function LineChart({ width, height, series }: { width: number; height: number; s
       ))}
     </svg>
   );
+}
+
+function monthHeaderForSeries(series: Point[]): string | "" {
+  if (series.length === 0) return "";
+  const xs = series.map((p) => p.x);
+  const m = xs[0].match(/^(\d{4}-\d{2})-\d{2}$/);
+  if (!m) return "";
+  const prefix = m[1];
+  const allSame = xs.every((x) => x.startsWith(prefix + "-"));
+  return allSame ? prefix : "";
+}
+
+function formatXAxisLabel(x: string, mode: DateMode, tf: Timeframe, currentMonth: { year: number; month: number } | null): string {
+  // For 6 months and year, convert YYYY-MM labels to month names
+  if (tf === "6months" || tf === "year") {
+    const m = x.match(/^(\d{4})-(\d{2})$/);
+    if (m) {
+      const monthNum = Number(m[2]);
+      if (mode === "AD") return EN_MONTHS[(monthNum - 1 + 12) % 12];
+      return NP_MONTHS[(monthNum - 1 + 12) % 12];
+    }
+  }
+  // For month view, show day numbers only (extract day from YYYY-MM-DD)
+  if (tf === "month") {
+    const dayMatch = x.match(/-(\d{2})$/);
+    if (dayMatch) {
+      return String(Number(dayMatch[1])); // Remove leading zero
+    }
+    // Handle case where x might be in YYYY-MM format (fallback to single monthly point)
+    const monthMatch = x.match(/^(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      return "1"; // Show as day 1 for monthly aggregated data
+    }
+    return x;
+  }
+  return x;
 }

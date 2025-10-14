@@ -2,6 +2,7 @@ import { connectDB } from "@/config/db";
 import roomModel from "@/models/room";
 import peopleModel from "@/models/people";
 import { NextResponse } from "next/server";
+import logModel from "@/models/log";
 import type { NextRequest } from "next/server";
 
 connectDB();
@@ -48,6 +49,13 @@ export async function POST(request: NextRequest) {
     const formData = await request.json();
     console.log("POST formData received:", formData); // Debug log
     const newRoom = await roomModel.create(formData);
+    await logModel.create({
+      type: "room_created",
+      entity: "room",
+      entity_id: newRoom._id.toString(),
+      message: `Room #${newRoom.readable_id} created (rent: ${newRoom.rent ?? formData?.rent ?? "-"}, water: ${newRoom.water_price ?? formData?.water_price ?? "-"})`,
+      meta: { ...formData, rent: newRoom.rent, water_price: newRoom.water_price }
+    });
     console.log("Created room:", newRoom); // Debug log
 
     return NextResponse.json({
@@ -85,6 +93,7 @@ export async function PUT(request: NextRequest) {
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
     }
+    const before = await roomModel.findOne({ readable_id }).lean();
     const updated = await roomModel.findOneAndUpdate(
       { readable_id },
       { $set: update },
@@ -93,6 +102,15 @@ export async function PUT(request: NextRequest) {
     console.log("Updated room:", updated); // Debug log
     if (!updated) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
+    }
+    if (updated) {
+      await logModel.create({
+        type: "room_updated",
+        entity: "room",
+        entity_id: updated._id.toString(),
+        message: `Room #${updated.readable_id} updated`,
+        meta: { before, after: updated }
+      });
     }
     return NextResponse.json({ message: "Room updated", data: updated });
   } catch (error: any) {
@@ -117,6 +135,15 @@ export async function DELETE(request: NextRequest) {
     const deleted = await roomModel.findOneAndDelete({ readable_id });
     if (!deleted) {
       return NextResponse.json({ message: "Room not found" }, { status: 404 });
+    }
+    if (deleted) {
+      await logModel.create({
+        type: "room_deleted",
+        entity: "room",
+        entity_id: deleted._id.toString(),
+        message: `Room #${deleted.readable_id} deleted`,
+        meta: { readable_id }
+      });
     }
     return NextResponse.json({ message: "Room deleted", data: deleted });
   } catch (error: any) {

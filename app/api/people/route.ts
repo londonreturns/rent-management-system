@@ -4,6 +4,7 @@ import roomModel from "@/models/room";
 import { nepaliToEnglishDate, calculateDeadlineDay, calculateDeadlineDate } from "@/lib/utils";
 import NepaliDate from "nepali-datetime";
 import { NextResponse } from "next/server";
+import logModel from "@/models/log";
 import type { NextRequest } from "next/server";
 
 connectDB();
@@ -64,7 +65,14 @@ export async function POST(request: NextRequest) {
     console.log("---------------------------------");
 
     console.log('Processed body:', processedBody);
-    await peopleModel.create(processedBody);
+    const created = await peopleModel.create(processedBody);
+    await logModel.create({
+      type: "user_created",
+      entity: "user",
+      entity_id: created._id.toString(),
+      message: `User ${created.name} created${created.room_id ? ` (room #${(await roomModel.findById(created.room_id).select('readable_id').lean())?.readable_id})` : ''}`,
+      meta: processedBody
+    });
 
     if (body?.room_id) {
       await roomModel.findByIdAndUpdate(body.room_id, { $set: { is_occupied: true } });
@@ -114,6 +122,7 @@ export async function PUT(request: NextRequest) {
       .findById(_id)
       .select("room_id")
       .lean<{ room_id?: string }>();
+    const before = await peopleModel.findById(_id).lean();
     const updated = await peopleModel.findByIdAndUpdate(_id, { $set: { ...processedRest, room_id: room_id || null } }, { new: true });
     // if room changed, update occupancy flags
     const prevRoomId = existing?.room_id?.toString();
@@ -125,6 +134,13 @@ export async function PUT(request: NextRequest) {
       await roomModel.findByIdAndUpdate(nextRoomId, { $set: { is_occupied: true } });
     }
     if (!updated) return NextResponse.json({ message: "Person not found" }, { status: 404 });
+    await logModel.create({
+      type: "user_updated",
+      entity: "user",
+      entity_id: updated._id.toString(),
+      message: `User ${updated.name} updated`,
+      meta: { before, after: updated }
+    });
     return NextResponse.json({ message: "Person updated successfully", data: updated });
   } catch (error: any) {
     return NextResponse.json(
@@ -144,6 +160,13 @@ export async function DELETE(request: NextRequest) {
       await roomModel.findByIdAndUpdate(deleted.room_id, { $set: { is_occupied: false } });
     }
     if (!deleted) return NextResponse.json({ message: "Person not found" }, { status: 404 });
+    await logModel.create({
+      type: "user_deleted",
+      entity: "user",
+      entity_id: deleted._id.toString(),
+      message: `User ${deleted.name} deleted`,
+      meta: { _id }
+    });
     return NextResponse.json({ message: "Person deleted successfully", data: deleted });
   } catch (error: any) {
     return NextResponse.json(

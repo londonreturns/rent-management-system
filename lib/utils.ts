@@ -56,6 +56,29 @@ export function calculateDeadlineDay(dateString: string): number {
   }
 }
 
+// Convert AD date to BS date
+export function adToBsDate(adDateString: string): string {
+  if (!adDateString) return "";
+
+  try {
+    // Parse the AD date string (format: YYYY-MM-DD or ISO string)
+    const adDate = new Date(adDateString);
+
+    // Convert to NepaliDate
+    const nepaliDate = new NepaliDate(adDate);
+
+    // Format as YYYY-MM-DD in BS
+    const year = nepaliDate.getYear();
+    const month = String(nepaliDate.getMonth() + 1).padStart(2, '0');
+    const day = String(nepaliDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('Error converting AD to BS date:', error);
+    return "";
+  }
+}
+
 // Legacy function for backward compatibility (still used in some places)
 export function calculateDeadlineDate(dateString: string): string {
   if (!dateString) return "";

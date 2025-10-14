@@ -3,7 +3,9 @@ import paymentModel from "@/models/payment";
 import peopleModel from "@/models/people";
 import roomModel from "@/models/room";
 import { NextResponse } from "next/server";
+import logModel from "@/models/log";
 import type { NextRequest } from "next/server";
+import { adToBsDate } from "@/lib/utils";
 
 connectDB();
 
@@ -150,6 +152,10 @@ export async function POST(request: NextRequest) {
 
     console.log("Determined paymentStatus:", paymentStatus);
 
+    // Generate BS date from AD date if not provided
+    const currentDate = new Date();
+    const generatedBsDate = payment_date_bs || adToBsDate(currentDate.toISOString());
+
     // Create payment record
     const paymentData = {
       room_id,
@@ -167,13 +173,27 @@ export async function POST(request: NextRequest) {
       amount_paid: Math.round(Number(amount_paid) * 100) / 100,
       remaining_balance: Math.round(Number(actualRemainingBalance) * 100) / 100,
       previous_balance: Math.round(Number(previous_balance || 0) * 100) / 100,
-      payment_date_bs: payment_date_bs || null,
+      payment_date_bs: generatedBsDate,
       payment_method: payment_method || "cash",
       notes: notes || null,
       status: paymentStatus
     };
 
     const payment = await paymentModel.create(paymentData);
+
+    // Log
+    await logModel.create({
+      type: "payment_created",
+      entity: "payment",
+      entity_id: payment._id.toString(),
+      message: `Payment created for ${payment.person_name} (room #${payment.room_readable_id})`,
+      meta: {
+        payment_month: payment.payment_month,
+        amount_paid: payment.amount_paid,
+        total_amount: payment.total_amount,
+        status: payment.status
+      }
+    });
 
     return NextResponse.json({
       message: "Payment processed successfully",
@@ -203,6 +223,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update payment record
+    const before = await paymentModel.findById(_id).lean();
     const payment = await paymentModel.findByIdAndUpdate(
       _id,
       { $set: updateData },
@@ -214,6 +235,16 @@ export async function PUT(request: NextRequest) {
         { message: "Payment not found" },
         { status: 404 }
       );
+    }
+
+    if (payment) {
+      await logModel.create({
+        type: "payment_updated",
+        entity: "payment",
+        entity_id: payment._id.toString(),
+        message: `Payment updated for ${payment.person_name} (room #${payment.room_readable_id})`,
+        meta: { before, after: payment }
+      });
     }
 
     return NextResponse.json({
@@ -248,6 +279,16 @@ export async function DELETE(request: NextRequest) {
         { message: "Payment not found" },
         { status: 404 }
       );
+    }
+
+    if (payment) {
+      await logModel.create({
+        type: "payment_deleted",
+        entity: "payment",
+        entity_id: payment._id.toString(),
+        message: `Payment deleted for ${payment.person_name} (room #${payment.room_readable_id})`,
+        meta: { _id }
+      });
     }
 
     return NextResponse.json({
