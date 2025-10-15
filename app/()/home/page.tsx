@@ -507,7 +507,7 @@ export default function Home() {
         }
       >
         <LineChart
-          width={windowWidth < 640 ? windowWidth - 48 : windowWidth - 16}
+          width={windowWidth < 640 ? windowWidth - 64 : windowWidth - 96}
           height={240}
           series={mainSeries}
           formatX={(x) => formatXAxisLabel(x, dateMode, timeframe, currentMonth)}
@@ -556,7 +556,7 @@ export default function Home() {
         }
       >
         <LineChart
-          width={windowWidth < 640 ? windowWidth - 48 : windowWidth - 16}
+          width={windowWidth < 640 ? windowWidth - 64 : windowWidth - 96}
           height={240}
           series={cumulativeSeries}
           formatX={(x) => formatXAxisLabel(x, dateMode, "year", null)}
