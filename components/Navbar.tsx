@@ -25,9 +25,9 @@ export function NavBar() {
   };
 
   return (
-    <div className="flex items-center justify-center w-full p-4 border-b border-gray-200 bg-gray-50">
+    <div className="flex items-center justify-center w-full p-2 sm:p-4 border-b border-gray-200 bg-gray-50">
       <NavigationMenu viewport={false}>
-        <NavigationMenuList>
+        <NavigationMenuList className="flex flex-wrap justify-center gap-1 sm:gap-2">
           <NavigationMenuItem>
             <NavigationMenuLink
               asChild
@@ -35,11 +35,11 @@ export function NavBar() {
             >
               <Link
                 href="/payment"
-                className={
+                className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 ${
                   isActive("/payment")
                     ? "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     : ""
-                }
+                }`}
               >
                 Payment
               </Link>
@@ -52,11 +52,11 @@ export function NavBar() {
             >
               <Link
                 href="/home"
-                className={
+                className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 ${
                   isActive("/home")
                     ? "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     : ""
-                }
+                }`}
               >
                 Home
               </Link>
@@ -69,11 +69,11 @@ export function NavBar() {
             >
               <Link
                 href="/room"
-                className={
+                className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 ${
                   isActive("/room")
                     ? "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     : ""
-                }
+                }`}
               >
                 Room
               </Link>
@@ -86,27 +86,27 @@ export function NavBar() {
             >
               <Link
                 href="/people"
-                className={
+                className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 ${
                   isActive("/people")
                     ? "bg-black text-white hover:bg-black hover:text-white focus:bg-black focus:text-white"
                     : ""
-                }
+                }`}
               >
                 People
               </Link>
             </NavigationMenuLink>
           </NavigationMenuItem>
-          <NavigationMenuItem className="ml-4">
+          <NavigationMenuItem className="ml-2 sm:ml-4">
             <NavigationMenuLink
               asChild
               className={navigationMenuTriggerStyle()}
             >
               <button 
                 onClick={logout}
-                className="flex items-center justify-center hover:bg-gray-200 px-3 py-2 rounded-md"
+                className="flex items-center justify-center hover:bg-gray-200 px-2 sm:px-3 py-1 sm:py-2 rounded-md"
                 title="Logout"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
               </button>
             </NavigationMenuLink>
           </NavigationMenuItem>

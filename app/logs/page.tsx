@@ -34,11 +34,13 @@ export default function LogsPage() {
   }, []);
 
   return (
-    <div className="p-4">
+    <div className="p-2 sm:p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Activity Logs</h1>
+        <h1 className="text-lg sm:text-xl font-semibold">Activity Logs</h1>
       </div>
-      <div className="rounded-md border overflow-hidden">
+      
+      {/* Desktop Table View */}
+      <div className="hidden sm:block rounded-md border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
@@ -51,10 +53,10 @@ export default function LogsPage() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={4} className="p-4 text-center text-gray-500">Loading…</td></tr>
+              <tr><td colSpan={5} className="p-4 text-center text-gray-500">Loading…</td></tr>
             )}
             {!loading && logs.length === 0 && (
-              <tr><td colSpan={4} className="p-4 text-center text-gray-500">No logs yet</td></tr>
+              <tr><td colSpan={5} className="p-4 text-center text-gray-500">No logs yet</td></tr>
             )}
             {logs.map((l) => (
               <tr key={l._id} className={rowClass(l)}>
@@ -69,6 +71,39 @@ export default function LogsPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="sm:hidden space-y-3">
+        {loading && (
+          <div className="p-4 text-center text-gray-500 text-sm">Loading…</div>
+        )}
+        {!loading && logs.length === 0 && (
+          <div className="p-4 text-center text-gray-500 text-sm">No logs yet</div>
+        )}
+        {logs.map((l) => (
+          <div key={l._id} className={`rounded-md border p-3 ${rowClass(l)}`}>
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <div className="text-xs text-gray-500 mb-1">
+                  {new Date(l.created_at).toLocaleString()}
+                </div>
+                <div className="font-medium text-sm mb-1">
+                  {labelForType(l.type)}
+                </div>
+                <div className="text-sm mb-2">
+                  {l.message}
+                </div>
+                <div className="text-xs text-gray-500 mb-2">
+                  {l.entity}{l.entity_id ? ` (${l.entity_id})` : ""}
+                </div>
+              </div>
+            </div>
+            <div className="border-t pt-2">
+              <Details meta={l.meta} />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -113,7 +148,7 @@ function Details({ meta }: { meta: any }) {
           const a = (after as any)[f];
           if (JSON.stringify(b) === JSON.stringify(a)) return null;
           return (
-            <div key={f}>
+            <div key={f} className="break-words">
               <span className="text-gray-500 mr-1">{f}:</span>
               <span className="line-through text-red-600 mr-1">{fmt(b)}</span>
               <span className="text-green-700">{fmt(a)}</span>
@@ -130,9 +165,9 @@ function Details({ meta }: { meta: any }) {
   return (
     <div className="text-xs text-gray-700">
       {Object.keys(show).length === 0 ? <span className="text-gray-400">—</span> : (
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <div className="flex flex-wrap gap-x-2 sm:gap-x-3 gap-y-1">
           {Object.entries(show).map(([k, v]) => (
-            <div key={k}><span className="text-gray-500 mr-1">{k}:</span>{fmt(v)}</div>
+            <div key={k} className="break-words"><span className="text-gray-500 mr-1">{k}:</span>{fmt(v)}</div>
           ))}
         </div>
       )}

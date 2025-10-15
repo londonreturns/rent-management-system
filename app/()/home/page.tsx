@@ -34,6 +34,15 @@ export default function Home() {
   const [adYear, setAdYear] = useState<number>(now.getFullYear());
   const [bsYear, setBsYear] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState<{ year: number; month: number } | null>(null);
+  const [windowWidth, setWindowWidth] = useState<number>(900);
+
+  // Track window width for responsive charts
+  useEffect(() => {
+    const updateWidth = () => setWindowWidth(window.innerWidth);
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -371,37 +380,37 @@ export default function Home() {
   }, [payments, dateMode, now, adYear, bsYear]);
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-2 sm:p-4 space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold">Analytics</h1>
-        <div className="flex items-center gap-4">
+        <h1 className="text-lg sm:text-xl font-semibold">Analytics</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
           {/* Date mode toggle (affects both charts) */}
           <RadioGroup
-            className="flex items-center gap-3"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3"
             value={dateMode}
             onValueChange={(v) => setDateMode((v as DateMode) || "BS")}
           >
             <div className="flex items-center gap-2">
               <RadioGroupItem id="mode-bs" value="BS" />
-              <label htmlFor="mode-bs" className="text-sm">Bikram Sambat (BS)</label>
+              <label htmlFor="mode-bs" className="text-xs sm:text-sm">Bikram Sambat (BS)</label>
             </div>
             <div className="flex items-center gap-2">
               <RadioGroupItem id="mode-ad" value="AD" />
-              <label htmlFor="mode-ad" className="text-sm">Gregorian (AD)</label>
+              <label htmlFor="mode-ad" className="text-xs sm:text-sm">Gregorian (AD)</label>
             </div>
           </RadioGroup>
         </div>
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-md border p-4 bg-white/50">
-          <div className="text-sm text-muted-foreground">Total rent this month</div>
-          <div className="mt-1 text-2xl font-semibold">{loading ? "…" : totals.monthly.toFixed(2)}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="rounded-md border p-3 sm:p-4 bg-white/50">
+          <div className="text-xs sm:text-sm text-muted-foreground">Total rent this month</div>
+          <div className="mt-1 text-lg sm:text-2xl font-semibold">{loading ? "…" : totals.monthly.toFixed(2)}</div>
         </div>
-        <div className="rounded-md border p-4 bg-white/50">
-          <div className="text-sm text-muted-foreground">Total rent this year</div>
-          <div className="mt-1 text-2xl font-semibold">{loading ? "…" : totals.yearly.toFixed(2)}</div>
+        <div className="rounded-md border p-3 sm:p-4 bg-white/50">
+          <div className="text-xs sm:text-sm text-muted-foreground">Total rent this year</div>
+          <div className="mt-1 text-lg sm:text-2xl font-semibold">{loading ? "…" : totals.yearly.toFixed(2)}</div>
         </div>
       </div>
 
@@ -419,7 +428,7 @@ export default function Home() {
             }`}
         loading={loading}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {([
               { k: "month", lbl: "This month" },
               { k: "6months", lbl: "Past 6 months" },
@@ -451,7 +460,7 @@ export default function Home() {
                     }
                   }
                 }}
-                className="transition-colors duration-200 hover:bg-black hover:text-white"
+                className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
               >
                 {lbl}
               </Button>
@@ -471,7 +480,7 @@ export default function Home() {
                       setCurrentMonth({ year: newYear, month: newMonth });
                     }
                   }}
-                  className="transition-colors duration-200 hover:bg-black hover:text-white"
+                  className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
                 >
                   ← Prev Month
                 </Button>
@@ -488,7 +497,7 @@ export default function Home() {
                       setCurrentMonth({ year: newYear, month: newMonth });
                     }
                   }}
-                  className="transition-colors duration-200 hover:bg-black hover:text-white"
+                  className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
                 >
                   Next Month →
                 </Button>
@@ -498,7 +507,7 @@ export default function Home() {
         }
       >
         <LineChart
-          width={900}
+          width={windowWidth < 640 ? windowWidth - 48 : windowWidth - 16}
           height={240}
           series={mainSeries}
           formatX={(x) => formatXAxisLabel(x, dateMode, timeframe, currentMonth)}
@@ -512,14 +521,14 @@ export default function Home() {
         subtitle={`${dateMode} • ${dateMode === "AD" ? adYear : (bsYear ?? getCurrentBSYearFromData() ?? "")}`}
         loading={loading}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             <Button
               variant="secondary"
               onClick={() => {
                 if (dateMode === "AD") setAdYear((y) => y - 1);
                 else setBsYear((y) => (y ?? getCurrentBSYearFromData() ?? new Date().getFullYear()) - 1);
               }}
-              className="transition-colors duration-200 hover:bg-black hover:text-white"
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
             >
               Past Year
             </Button>
@@ -529,7 +538,7 @@ export default function Home() {
                 if (dateMode === "AD") setAdYear(now.getFullYear());
                 else setBsYear(getCurrentBSYearFromData() ?? null);
               }}
-              className="transition-colors duration-200 hover:bg-black hover:text-white"
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
             >
               This Year
             </Button>
@@ -539,7 +548,7 @@ export default function Home() {
                 if (dateMode === "AD") setAdYear((y) => y + 1);
                 else setBsYear((y) => (y ?? getCurrentBSYearFromData() ?? new Date().getFullYear()) + 1);
               }}
-              className="transition-colors duration-200 hover:bg-black hover:text-white"
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
             >
               Next Year
             </Button>
@@ -547,7 +556,7 @@ export default function Home() {
         }
       >
         <LineChart
-          width={900}
+          width={windowWidth < 640 ? windowWidth - 48 : windowWidth - 16}
           height={240}
           series={cumulativeSeries}
           formatX={(x) => formatXAxisLabel(x, dateMode, "year", null)}
@@ -573,23 +582,30 @@ function labelForTimeframe(tf: Timeframe): string {
 
 function ChartCard({ title, subtitle, loading, actions, children }: { title: string; subtitle?: string; loading?: boolean; actions?: React.ReactNode; children: React.ReactNode; }) {
   return (
-    <div className="rounded-md border p-4 bg-white/50">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="rounded-md border p-3 sm:p-4 bg-white/50">
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
         <div>
-          <div className="font-medium">{title}</div>
+          <div className="font-medium text-sm sm:text-base">{title}</div>
           {subtitle ? <div className="text-xs text-muted-foreground">{subtitle}</div> : null}
         </div>
-        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-1 sm:gap-2">{actions}</div> : null}
       </div>
       <div className="overflow-x-auto">
-        {loading ? <div className="p-8 text-sm text-muted-foreground">Loading…</div> : children}
+        {loading ? <div className="p-4 sm:p-8 text-xs sm:text-sm text-muted-foreground">Loading…</div> : children}
       </div>
     </div>
   );
 }
 
 function LineChart({ width, height, series, formatX, timeframe }: { width: number; height: number; series: Point[]; formatX?: (x: string) => string; timeframe?: Timeframe }) {
-  const padding = { top: 10, right: 16, bottom: 24, left: 40 };
+  const isMobile = width < 640;
+  const isSmallMobile = width < 400;
+  const padding = { 
+    top: 10, 
+    right: isSmallMobile ? 4 : isMobile ? 8 : 16, 
+    bottom: isSmallMobile ? 16 : isMobile ? 20 : 24, 
+    left: isSmallMobile ? 24 : isMobile ? 30 : 40 
+  };
   const innerW = Math.max(0, width - padding.left - padding.right);
   const innerH = Math.max(0, height - padding.top - padding.bottom);
 
@@ -662,7 +678,7 @@ function LineChart({ width, height, series, formatX, timeframe }: { width: numbe
         return (
           <g key={i}>
             <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="#f3f4f6" />
-            <text x={padding.left - 8} y={y} textAnchor="end" dominantBaseline="middle" className="fill-gray-500 text-[10px]">
+            <text x={padding.left - 8} y={y} textAnchor="end" dominantBaseline="middle" className={`fill-gray-500 ${isSmallMobile ? 'text-[7px]' : isMobile ? 'text-[8px]' : 'text-[10px]'}`}>
               {t.toFixed(0)}
             </text>
           </g>
@@ -691,7 +707,7 @@ function LineChart({ width, height, series, formatX, timeframe }: { width: numbe
         const base = monthPrefix ? x.split("-")[2] : x;
         const label = formatX ? formatX(base) : base;
         return (
-          <text key={i} x={xPos(i)} y={height - padding.bottom + 14} textAnchor="middle" className="fill-gray-500 text-[10px]">
+          <text key={i} x={xPos(i)} y={height - padding.bottom + 14} textAnchor="middle" className={`fill-gray-500 ${isSmallMobile ? 'text-[7px]' : isMobile ? 'text-[8px]' : 'text-[10px]'}`}>
             {label}
           </text>
         );
