@@ -52,11 +52,6 @@ export default function Home() {
             payment_date_ad: p.payment_date_ad ? new Date(p.payment_date_ad).toISOString() : undefined,
             payment_date_bs: p.payment_date_bs || null,
           }));
-          console.log(`Loaded ${rows.length} payments:`, rows.map(p => ({
-            month: p.payment_month,
-            bs_date: p.payment_date_bs,
-            rent: p.rent_cost
-          })));
           setPayments(rows);
         }
       } catch (e) {
@@ -174,8 +169,12 @@ export default function Home() {
     if (dateMode === "AD") {
       if (timeframe === "month") {
         // daily within current month (AD)
-        const fd = firstDayOfMonth(now);
-        const ld = lastDayOfMonth(now);
+        let targetDate = now;
+        if (currentMonth) {
+          targetDate = new Date(currentMonth.year, currentMonth.month - 1, 1);
+        }
+        const fd = firstDayOfMonth(targetDate);
+        const ld = lastDayOfMonth(targetDate);
         for (let d = new Date(fd); d <= ld; d.setDate(d.getDate() + 1)) {
           const key = d.toISOString().slice(0, 10);
           points[key] = 0;
@@ -228,16 +227,24 @@ export default function Home() {
     } else {
       // BS mode: use payment_month (YYYY-MM) for month aggregation
       if (timeframe === "month") {
-        // Try daily if payment_date_bs exists, else aggregate single point by payment_month
-        const currentBSYear = getCurrentBSYearFromData();
+        // Use currentMonth state for navigation, fallback to data-based month
+        let currentBSYear: number | null = null;
         let currentBSMonth: number | null = null;
-        if (currentBSYear) {
-          const months = payments
-            .filter((p) => p.payment_month?.startsWith(String(currentBSYear)))
-            .map((p) => Number(String(p.payment_month).split("-")[1]))
-            .filter((n) => Number.isFinite(n));
-          if (months.length) currentBSMonth = Math.max(...months);
+        
+        if (currentMonth) {
+          currentBSYear = currentMonth.year;
+          currentBSMonth = currentMonth.month;
+        } else {
+          currentBSYear = getCurrentBSYearFromData();
+          if (currentBSYear) {
+            const months = payments
+              .filter((p) => p.payment_month?.startsWith(String(currentBSYear)))
+              .map((p) => Number(String(p.payment_month).split("-")[1]))
+              .filter((n) => Number.isFinite(n));
+            if (months.length) currentBSMonth = Math.max(...months);
+          }
         }
+        
         if (currentBSYear && currentBSMonth) {
           const bsMonthPrefix = `${currentBSYear}-${String(currentBSMonth).padStart(2, "0")}`;
           
@@ -259,18 +266,15 @@ export default function Home() {
                 const paymentDay = Number(p.payment_date_bs.split("-")[2]);
                 if (paymentDay >= 1 && paymentDay <= 30) {
                   points[p.payment_date_bs] = (points[p.payment_date_bs] || 0) + p.rent_cost;
-                  console.log(`Payment on BS date ${p.payment_date_bs}: ${p.rent_cost} rent`);
                 }
               } else {
                 // If no specific day, put it on day 1
                 const key = `${yStr}-${mStr}-01`;
                 points[key] = (points[key] || 0) + p.rent_cost;
-                console.log(`Payment without BS date, using day 1: ${p.rent_cost} rent`);
               }
             }
           }
           
-          console.log(`Processing month ${bsMonthPrefix}, found ${Object.keys(points).length} days`);
         }
       } else if (timeframe === "6months") {
         const currentBSYear = getCurrentBSYearFromData();
@@ -330,7 +334,7 @@ export default function Home() {
 
     const sortedKeys = Object.keys(points).sort();
     return sortedKeys.map((k) => ({ x: k, y: Math.round(points[k] * 100) / 100 }));
-  }, [payments, dateMode, timeframe, now, adYear, bsYear]);
+  }, [payments, dateMode, timeframe, now, adYear, bsYear, currentMonth]);
 
   // Cumulative series for current year (always rendered)
   const cumulativeSeries: Point[] = useMemo(() => {
@@ -425,7 +429,28 @@ export default function Home() {
               <Button
                 key={k}
                 variant={timeframe === k ? "default" : "secondary"}
-                onClick={() => setTimeframe(k)}
+                onClick={() => {
+                  setTimeframe(k);
+                  // Reset to current month when "This month" is clicked
+                  if (k === "month") {
+                    if (dateMode === "AD") {
+                      setCurrentMonth({ year: now.getFullYear(), month: now.getMonth() + 1 });
+                    } else {
+                      // For BS mode, use the current BS year and month from data
+                      const currentBSYear = getCurrentBSYearFromData();
+                      if (currentBSYear) {
+                        const months = payments
+                          .filter((p) => p.payment_month?.startsWith(String(currentBSYear)))
+                          .map((p) => Number(String(p.payment_month).split("-")[1]))
+                          .filter((n) => Number.isFinite(n));
+                        if (months.length) {
+                          const currentBSMonth = Math.max(...months);
+                          setCurrentMonth({ year: currentBSYear, month: currentBSMonth });
+                        }
+                      }
+                    }
+                  }
+                }}
                 className="transition-colors duration-200 hover:bg-black hover:text-white"
               >
                 {lbl}

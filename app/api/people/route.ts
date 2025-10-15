@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       type: "user_created",
       entity: "user",
       entity_id: created._id.toString(),
-      message: `User ${created.name} created${created.room_id ? ` (room #${(await roomModel.findById(created.room_id).select('readable_id').lean())?.readable_id})` : ''}`,
+      message: `User ${created.name} created${created.room_id ? ` (room #${(await roomModel.findById(created.room_id).select('readable_id').lean() as { readable_id: number } | null)?.readable_id})` : ''}`,
       meta: processedBody
     });
 
