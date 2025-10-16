@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { adToBsDate } from "@/lib/utils";
 
 type Payment = {
   _id: string;
@@ -35,6 +36,22 @@ export default function Home() {
   const [bsYear, setBsYear] = useState<number | null>(null);
   const [currentMonth, setCurrentMonth] = useState<{ year: number; month: number } | null>(null);
   const [windowWidth, setWindowWidth] = useState<number>(900);
+
+  // Derive today's BS year/month from current AD date
+  const todayBS = useMemo(() => {
+    try {
+      const bs = adToBsDate(now.toISOString());
+      if (bs && /\d{4}-\d{2}-\d{2}/.test(bs)) {
+        const [y, m] = bs.split("-");
+        return { year: Number(y), month: Number(m) };
+      }
+      if (bs && /\d{4}-\d{2}/.test(bs)) {
+        const [y, m] = bs.split("-");
+        return { year: Number(y), month: Number(m) };
+      }
+    } catch {}
+    return { year: null as unknown as number | null, month: null as unknown as number | null };
+  }, [now]);
 
   // Track window width for responsive charts
   useEffect(() => {
@@ -76,14 +93,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (dateMode === "BS" && bsYear == null) {
-      const y = getCurrentBSYearFromData();
-      if (y) setBsYear(y);
-    }
-    // Set current month for navigation
     if (dateMode === "BS") {
-      const y = bsYear ?? getCurrentBSYearFromData();
-      if (y) {
+      // Prefer today's BS year/month as default
+      const y = bsYear ?? todayBS.year ?? getCurrentBSYearFromData();
+      if (y && bsYear == null) setBsYear(y);
+
+      if (todayBS.year && todayBS.month) {
+        setCurrentMonth({ year: todayBS.year, month: todayBS.month });
+      } else if (y) {
+        // Fallback to latest month in data for that year
         const months = payments
           .filter((p) => p.payment_month?.startsWith(String(y)))
           .map((p) => Number(String(p.payment_month).split("-")[1]))
@@ -94,9 +112,10 @@ export default function Home() {
         }
       }
     } else {
+      // AD mode: default to today's month/year
       setCurrentMonth({ year: adYear, month: now.getMonth() + 1 });
     }
-  }, [dateMode, payments, bsYear, adYear, now]);
+  }, [dateMode, payments, bsYear, adYear, now, todayBS]);
 
   // Helpers
   function formatYYYYMM(d: Date): string {
@@ -503,6 +522,40 @@ export default function Home() {
                 </Button>
               </>
             )}
+            {/* Additional year navigation buttons for Rent trend */}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTimeframe("year");
+                if (dateMode === "AD") setAdYear((y) => y - 1);
+                else setBsYear((y) => (y ?? (todayBS.year || getCurrentBSYearFromData() || new Date().getFullYear())) - 1);
+              }}
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
+            >
+              Past Year
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTimeframe("year");
+                if (dateMode === "AD") setAdYear(now.getFullYear());
+                else setBsYear(todayBS.year || getCurrentBSYearFromData() || null);
+              }}
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
+            >
+              This Year
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setTimeframe("year");
+                if (dateMode === "AD") setAdYear((y) => y + 1);
+                else setBsYear((y) => (y ?? (todayBS.year || getCurrentBSYearFromData() || new Date().getFullYear())) + 1);
+              }}
+              className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 transition-colors duration-200 hover:bg-black hover:text-white whitespace-nowrap"
+            >
+              Next Year
+            </Button>
           </div>
         }
       >
